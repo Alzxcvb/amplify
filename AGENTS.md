@@ -63,6 +63,15 @@ node src/index.js --campaign=arrival-pass --dry-run
 - Old Reddit top-level comment check: `el.parentElement?.closest('.comment')` returns null for top-level (parent is `.sitetable`), non-null for nested
 - Skip [deleted] and [removed] by checking both author and body text
 
+## Reddit Poster Notes
+
+- `shreddit-comment[thingid="t1_{commentId}"]` locates the specific comment by URL's last path segment prefixed with "t1_"
+- Old Reddit equivalent: `.comment[data-fullname="t1_{commentId}"]`
+- To detect a new reply box appearing: count `textarea, div[contenteditable="true"]` before clicking Reply, then `page.waitForFunction` until count increases — gets the right box regardless of Reddit version
+- After clicking Reply, `inputs.nth(inputCount - 1)` selects the most recently added input (the reply box)
+- Save/submit button: try `button[type="submit"], button.save` with `.last()` first; fall back to `button` filtered by text `/^(save|comment)$/i`
+- dryRun check must happen AFTER the reply box appears (so we prove the flow works) but BEFORE typing and submitting
+
 ## Campaign Loader Notes
 
 - `hi-im-alex.json` exists in campaigns/ but has `active: false` — loader correctly skips it
