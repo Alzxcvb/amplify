@@ -38,7 +38,7 @@
 
 ## Phase 7: Activity Log + Stats
 
-- [ ] TASK-17: Activity log query functions — add to src/state/db.js: getActivityLog(limit=50) returns last N rows from sent_replies joined with skipped_posts ordered by posted_at desc. getStats() returns {totalReplies, totalSkipped, repliesByCAMPAIGN: {}, last24hReplies}. node --check verify.
+- [x] TASK-17: Activity log query functions — add to src/state/db.js: getActivityLog(limit=50) returns last N rows from sent_replies joined with skipped_posts ordered by posted_at desc. getStats() returns {totalReplies, totalSkipped, repliesByCAMPAIGN: {}, last24hReplies}. node --check verify.
   - Depends: TASK-03
 - [ ] TASK-18: Console stats report — at end of runBot() in bot.js, after the run completes, print a formatted chalk table: campaign name | posts scanned | comments checked | matches found | replies posted | skipped. node --check verify.
   - Depends: TASK-11, TASK-17

@@ -93,6 +93,12 @@ node src/index.js --campaign=arrival-pass --dry-run
 - Subreddit loop ignores the rate-limit return (continues to next subreddit); keyword loop breaks on rate limit
 - Posts seen during the subreddit scan are already marked in `seen_posts`, so keyword results that overlap are automatically deduplicated
 
+## DB Activity Log Notes
+
+- `getActivityLog(limit)` uses `UNION ALL` of sent_replies and skipped_posts — column aliases align both tables into: type, campaign_id, post_url, comment_url, reply_text, reason, timestamp
+- `getStats()` queries totals and per-campaign breakdowns with simple COUNT aggregates — repliesByCampaign is keyed by campaign_id string
+- Both functions are exported from db.js alongside existing exports
+
 ## Campaign Loader Notes
 
 - `hi-im-alex.json` exists in campaigns/ but has `active: false` — loader correctly skips it

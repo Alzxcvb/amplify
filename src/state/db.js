@@ -74,4 +74,28 @@ function getRecentReplies(campaignId, hours) {
     .all(campaignId, cutoff);
 }
 
-module.exports = { getDb, hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies };
+function getActivityLog(limit = 50) {
+  return getDb().prepare(`
+    SELECT 'reply' AS type, campaign_id, post_url, comment_url, reply_text, NULL AS reason, posted_at AS timestamp
+    FROM sent_replies
+    UNION ALL
+    SELECT 'skipped' AS type, campaign_id, post_url, NULL AS comment_url, NULL AS reply_text, reason, skipped_at AS timestamp
+    FROM skipped_posts
+    ORDER BY timestamp DESC
+    LIMIT ?
+  `).all(limit);
+}
+
+function getStats() {
+  const database = getDb();
+  const totalReplies = database.prepare('SELECT COUNT(*) AS n FROM sent_replies').get().n;
+  const totalSkipped = database.prepare('SELECT COUNT(*) AS n FROM skipped_posts').get().n;
+  const cutoff24h = Math.floor(Date.now() / 1000) - 86400;
+  const last24hReplies = database.prepare('SELECT COUNT(*) AS n FROM sent_replies WHERE posted_at > ?').get(cutoff24h).n;
+  const byCampaignRows = database.prepare('SELECT campaign_id, COUNT(*) AS n FROM sent_replies GROUP BY campaign_id').all();
+  const repliesByCampaign = {};
+  for (const row of byCampaignRows) repliesByCampaign[row.campaign_id] = row.n;
+  return { totalReplies, totalSkipped, repliesByCampaign, last24hReplies };
+}
+
+module.exports = { getDb, hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies, getActivityLog, getStats };
