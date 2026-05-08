@@ -26,7 +26,7 @@
 
 ## Phase 5: Campaigns + Smoke Test
 
-- [ ] TASK-13: Full campaign configs — create campaigns/erasure.json (digital privacy pain points, subreddits: r/privacy, r/digitalnomad, r/personalfinance, r/technology) and campaigns/ns-academy.json (AI implementation for small business, subreddits: r/entrepreneur, r/smallbusiness, r/digitalnomad, r/AItools). Update campaigns/arrival-pass.json to add subreddits: r/solotravel, r/expats, r/travel, r/backpacking. Verify all 3 load: node -e "const {loadCampaigns}=require('./src/campaigns/loader');console.log(loadCampaigns().map(c=>c.id))".
+- [x] TASK-13: Full campaign configs — create campaigns/erasure.json (digital privacy pain points, subreddits: r/privacy, r/digitalnomad, r/personalfinance, r/technology) and campaigns/ns-academy.json (AI implementation for small business, subreddits: r/entrepreneur, r/smallbusiness, r/digitalnomad, r/AItools). Update campaigns/arrival-pass.json to add subreddits: r/solotravel, r/expats, r/travel, r/backpacking. Verify all 3 load: node -e "const {loadCampaigns}=require('./src/campaigns/loader');console.log(loadCampaigns().map(c=>c.id))".
 - [ ] TASK-14: Smoke test — test/smoke.js. Tests: (1) loadCampaigns() returns 3 campaigns, (2) DB init creates tables, (3) hasSeenPost returns false for new URL, (4) markPostSeen + hasSeenPost round-trip returns true, (5) logReply inserts row, (6) getRecentReplies returns 1 after logReply, (7) config constants are all defined + sane values. Run: node test/smoke.js. All 7 tests must pass with green output.
 
 ## Phase 6: Reddit Keyword Search
