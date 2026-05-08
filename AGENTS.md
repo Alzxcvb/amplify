@@ -29,7 +29,7 @@ node src/index.js --campaign=arrival-pass --dry-run
 ## Known Gotchas
 
 - Chrome must be running with --remote-debugging-port=9222 BEFORE the bot starts. Use `chrome-cdp` alias.
-- better-sqlite3 requires native compilation — if `npm install` fails, try: `npm install --build-from-source`
+- better-sqlite3 requires native compilation — if `npm install` fails on Node 25, upgrade to latest: `npm install better-sqlite3@latest`. v9.x fails to build (C++20 required by Node 25 headers); v12+ works.
 - Playwright CDP connect uses `chromium.connectOverCDP('http://localhost:9222')` — NOT `launch()`
 - Reddit comment permalinks look like: https://www.reddit.com/r/{sub}/comments/{postid}/{title}/{commentid}/ — always use the full permalink to navigate directly to a comment
 - Claude.ai selector for input may vary — try `div[contenteditable="true"]` first, then `[data-testid="chat-input"]`, then `textarea`
