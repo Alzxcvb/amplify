@@ -9,7 +9,7 @@
 
 ## Phase 2: AI Interface (No API Keys)
 
-- [ ] TASK-05: Claude.ai browser interface — src/ai/claude-browser.js. askClaude(browser, promptText) function: opens new tab to https://claude.ai/new, waits for chat input (selector: div[contenteditable="true"], textarea, or #prompt-textarea — try all three with fallback), types prompt with page.keyboard.type() at 80ms/char delay, presses Enter, polls for response completion (stable for 3s), extracts response text, closes tab, returns string. Must handle: page load timeout (30s), response timeout (60s). node --check verify.
+- [x] TASK-05: Claude.ai browser interface — src/ai/claude-browser.js. askClaude(browser, promptText) function: opens new tab to https://claude.ai/new, waits for chat input (selector: div[contenteditable="true"], textarea, or #prompt-textarea — try all three with fallback), types prompt with page.keyboard.type() at 80ms/char delay, presses Enter, polls for response completion (stable for 3s), extracts response text, closes tab, returns string. Must handle: page load timeout (30s), response timeout (60s). node --check verify.
 - [ ] TASK-06: Intent classifier + reply generator — src/ai/classifier.js. classifyAndReply(browser, post, campaign) function. post = {url, title, body, commentUrl, commentBody, author}. Builds prompt per specs/classifier-prompt.md. Calls askClaude. Parses JSON from response ({match, confidence, reply, reason}). Returns parsed object. If parse fails, returns {match: false, confidence: 0, reply: null, reason: 'parse_error'}. node --check verify.
 
 ## Phase 3: Reddit Platform

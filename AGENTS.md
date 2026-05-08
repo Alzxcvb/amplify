@@ -46,7 +46,8 @@ node src/index.js --campaign=arrival-pass --dry-run
 
 ## Patterns That Don't Work
 
-- (none yet)
+- `waitUntil: 'networkidle'` on claude.ai hangs — claude.ai keeps long-lived SSE/WS connections. Use `domcontentloaded` then `waitForSelector` instead.
+- `page.fill()` for prompt input triggers anti-bot detection on claude.ai and ChatGPT — always use `keyboard.type()` (short) or clipboard paste (long).
 
 ---
 
