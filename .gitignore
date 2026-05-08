@@ -3,4 +3,5 @@ data/
 .ralph/
 *.log
 .env
-dashboard/
+dashboard/node_modules/
+dashboard/.next/

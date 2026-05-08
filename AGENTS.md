@@ -117,3 +117,12 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `hi-im-alex.json` exists in campaigns/ but has `active: false` — loader correctly skips it
 - loader silently skips campaigns with JSON parse errors, missing required fields, or `active: false`
 - campaigns dir path is resolved relative to loader.js: `../../campaigns`
+
+## Dashboard API Route Notes
+
+- Route files live at `dashboard/app/api/<name>/route.js` — correct relative path to amplify/src is `../../../../src/` (4 levels up), not `../../../src/`
+- `"type": "module"` must be set in `dashboard/package.json` so `node --check` accepts ES module `export` syntax
+- Use `createRequire(import.meta.url)` to load CommonJS src modules (db.js, loader.js) from ESM route files
+- `serverExternalPackages: ['better-sqlite3']` must be set in `next.config.mjs` — native module cannot be bundled by webpack
+- `__dirname` in bundled CJS modules (db.js, loader.js) retains the original source file path due to webpack's per-module substitution — no need to change path resolution in src files
+- `.gitignore`: `dashboard/node_modules/` and `dashboard/.next/` (not `dashboard/`) so API routes and pages are committable
