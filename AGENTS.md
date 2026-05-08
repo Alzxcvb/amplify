@@ -126,3 +126,10 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `serverExternalPackages: ['better-sqlite3']` must be set in `next.config.mjs` — native module cannot be bundled by webpack
 - `__dirname` in bundled CJS modules (db.js, loader.js) retains the original source file path due to webpack's per-module substitution — no need to change path resolution in src files
 - `.gitignore`: `dashboard/node_modules/` and `dashboard/.next/` (not `dashboard/`) so API routes and pages are committable
+
+## Dashboard Page Notes
+
+- `node --check` does not support JSX syntax — it always fails on React component files (layout.js, page.js). This is a Node.js tooling limitation; JSX must be compiled by Next.js. For page files, verify visually or via `next build` instead.
+- `'use client'` directive at top of page.js enables useState/useEffect for client-side fetching from API routes
+- Stats shape from `/api/stats`: `{ totalReplies, totalSkipped, repliesByCampaign, last24hReplies }` — timestamps in DB are Unix seconds, convert with `new Date(ts * 1000)`
+- Activity shape from `/api/activity`: `{ type, campaign_id, post_url, comment_url, reply_text, reason, timestamp }` — type is 'reply' or 'skipped'

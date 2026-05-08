@@ -48,7 +48,7 @@
 - [x] TASK-19: Next.js dashboard scaffold — inside amplify/dashboard/ run: npx create-next-app@latest . --yes --no-git --tailwind --app. Add dashboard/ to .gitignore temporarily. Verify: dashboard/ exists with package.json and app/ dir. No node --check needed; just verify the directory structure.
 - [x] TASK-20: Dashboard API routes — create dashboard/app/api/campaigns/route.js (GET: return loadCampaigns()), dashboard/app/api/activity/route.js (GET: return getActivityLog(100)), dashboard/app/api/stats/route.js (GET: return getStats()). API routes import from ../../../src/ using relative paths. node --check verify on each route file.
   - Depends: TASK-17, TASK-19
-- [ ] TASK-21: Dashboard home page — dashboard/app/page.js. Shows: stats cards (total replies, today's replies, active campaigns), campaign list with toggle (active/inactive via JSON edit note), last 10 activity rows (campaign, post URL truncated, reply preview, timestamp). Uses fetch() to call the API routes. Tailwind styling. Verify: node --check dashboard/app/page.js.
+- [x] TASK-21: Dashboard home page — dashboard/app/page.js. Shows: stats cards (total replies, today's replies, active campaigns), campaign list with toggle (active/inactive via JSON edit note), last 10 activity rows (campaign, post URL truncated, reply preview, timestamp). Uses fetch() to call the API routes. Tailwind styling. Verify: node --check dashboard/app/page.js.
   - Depends: TASK-20
 - [ ] TASK-22: Dashboard activity feed page — dashboard/app/activity/page.js. Full activity log table: timestamp, campaign, post URL (clickable), reply text (first 100 chars), match/skip indicator. Paginated (show 50 at a time). Verify: node --check dashboard/app/activity/page.js.
   - Depends: TASK-20
