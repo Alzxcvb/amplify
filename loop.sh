@@ -116,8 +116,8 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
             exit 0
         fi
 
-        if [ "$ITERATION" -gt 1 ] && [ "$INCOMPLETE" -gt 0 ] && [ "$INCOMPLETE" -eq "$LAST_INCOMPLETE" ] && [ "$LAST_INCOMPLETE" -eq "$PREV_INCOMPLETE" ]; then
-            log "No progress for 2 iterations. Stopping for human review."
+        if [ "$ITERATION" -gt 3 ] && [ "$INCOMPLETE" -gt 0 ] && [ "$INCOMPLETE" -eq "$LAST_INCOMPLETE" ] && [ "$LAST_INCOMPLETE" -eq "$PREV_INCOMPLETE" ]; then
+            log "No progress for 3 iterations. Stopping for human review."
             grep -E "^- (\[[x ]\] )?BLOCKED:" "$PLAN_FILE" 2>/dev/null | tee -a "$LOG_FILE"
             exit 1
         fi
@@ -134,13 +134,14 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
     TEMP_OUTPUT=$(mktemp)
     trap "rm -f $TEMP_OUTPUT" EXIT
 
+    PROMPT="Read PROMPT_build.md and follow its instructions. Pick the next incomplete task from IMPLEMENTATION_PLAN.md, implement it, verify it works, commit, and mark it complete."
+
     RETRY=0
     MAX_RETRIES=3
     EXIT_CODE=1
     while [ $RETRY -lt $MAX_RETRIES ]; do
-        claude -p --verbose --output-format stream-json \
-            --allowedTools "$ALLOWED_TOOLS" \
-            "Read PROMPT_build.md and follow its instructions. Pick the next incomplete task from IMPLEMENTATION_PLAN.md, implement it, verify it works, commit, and mark it complete." 2>&1 | \
+        echo "$PROMPT" | claude -p --verbose --output-format stream-json \
+            --allowedTools "$ALLOWED_TOOLS" 2>&1 | \
             while IFS= read -r line; do
                 echo "$line" >> "$TEMP_OUTPUT"
                 if echo "$line" | grep -q '"type":"tool_use"'; then
