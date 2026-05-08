@@ -123,4 +123,105 @@ async function scrapeSubreddit(page, subredditName) {
   return posts;
 }
 
-module.exports = { scrapeSubreddit };
+async function scrapePostComments(page, postUrl) {
+  let response;
+  try {
+    response = await page.goto(postUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  } catch (err) {
+    console.warn(`[scraper] Navigation failed for ${postUrl}: ${err.message}`);
+    return [];
+  }
+
+  if (response) {
+    const status = response.status();
+    if (status === 404) {
+      console.warn(`[scraper] Post not found: ${postUrl}`);
+      return [];
+    }
+    if (status === 429) {
+      console.warn(`[scraper] Rate limited: ${postUrl}`);
+      return [];
+    }
+  }
+
+  const bodyText = await page.locator('body').textContent({ timeout: 5000 }).catch(() => '');
+  if (bodyText.toLowerCase().includes('you are doing that too much')) {
+    console.warn(`[scraper] Rate limited on ${postUrl}`);
+    return [];
+  }
+
+  // Wait for comments to load (or accept that there are none)
+  try {
+    await page.locator('shreddit-comment, .comment').first().waitFor({ timeout: 15000 });
+  } catch {
+    return [];
+  }
+
+  await page.waitForTimeout(1000 + Math.random() * 1500);
+
+  const comments = await page.evaluate(() => {
+    const results = [];
+    const LIMIT = 25;
+    const SKIP_AUTHORS = new Set(['[deleted]', '[removed]', 'automoderator']);
+
+    const shredditComments = document.querySelectorAll('shreddit-comment');
+    if (shredditComments.length > 0) {
+      for (const el of shredditComments) {
+        if (results.length >= LIMIT) break;
+
+        // Only top-level comments (depth 0); skip if explicitly nested
+        const depth = el.getAttribute('depth');
+        if (depth !== null && depth !== '0') continue;
+
+        const author = (el.getAttribute('author') || '').trim();
+        if (!author || SKIP_AUTHORS.has(author.toLowerCase())) continue;
+
+        let commentUrl = el.getAttribute('permalink') || el.getAttribute('content-href') || '';
+        if (commentUrl && !commentUrl.startsWith('http')) {
+          commentUrl = 'https://www.reddit.com' + commentUrl;
+        }
+
+        const bodyEl = el.querySelector('[slot="comment"]')
+          || el.querySelector('.md')
+          || el.querySelector('p');
+        const body = bodyEl?.textContent?.trim() || '';
+        if (!body || body === '[deleted]' || body === '[removed]') continue;
+
+        results.push({ author, body, url: commentUrl });
+      }
+    }
+
+    // Fall back to old Reddit selectors
+    if (results.length === 0) {
+      const commentDivs = document.querySelectorAll('.comment');
+      for (const el of commentDivs) {
+        if (results.length >= LIMIT) break;
+
+        // Skip nested comments (parent is inside another .comment)
+        if (el.parentElement?.closest('.comment')) continue;
+
+        const authorEl = el.querySelector('a.author');
+        const author = (authorEl?.textContent?.trim() || '');
+        if (!author || SKIP_AUTHORS.has(author.toLowerCase())) continue;
+
+        const bodyEl = el.querySelector('.usertext-body .md');
+        const body = bodyEl?.textContent?.trim() || '';
+        if (!body || body === '[deleted]' || body === '[removed]') continue;
+
+        const linkEl = el.querySelector('a.bylink');
+        let commentUrl = linkEl?.getAttribute('href') || '';
+        if (commentUrl && !commentUrl.startsWith('http')) {
+          commentUrl = 'https://www.reddit.com' + commentUrl;
+        }
+
+        results.push({ author, body, url: commentUrl });
+      }
+    }
+
+    return results;
+  });
+
+  return comments;
+}
+
+module.exports = { scrapeSubreddit, scrapePostComments };

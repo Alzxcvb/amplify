@@ -58,6 +58,10 @@ node src/index.js --campaign=arrival-pass --dry-run
 - Promoted posts: check `el.getAttribute('promoted') !== null` for shreddit-post; check `el.closest('[data-promoted="true"]')` for old Reddit containers
 - `page.locator('body').textContent()` can detect "you are doing that too much" rate-limit pages
 - `response.status()` from `page.goto()` is the cleanest way to detect 404/429
+- `shreddit-comment` top-level comments have `depth="0"` attribute; nested ones have higher depth values
+- `shreddit-comment` body text is accessible via `[slot="comment"]`, `.md`, or `p` in light DOM (no shadow DOM penetration needed)
+- Old Reddit top-level comment check: `el.parentElement?.closest('.comment')` returns null for top-level (parent is `.sitetable`), non-null for nested
+- Skip [deleted] and [removed] by checking both author and body text
 
 ## Campaign Loader Notes
 
