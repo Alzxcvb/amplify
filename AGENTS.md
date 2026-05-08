@@ -104,6 +104,14 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `printSummary(stats, dryRun)` in bot.js prints both: (1) per-run table (campaign | posts | comments | matches | replies | skipped) and (2) all-time DB stats from `getStats()` (total replies, skipped, last 24h, per-campaign breakdown)
 - `getStats` is imported from `./state/db` alongside the other db exports — add it to the destructure in bot.js
 
+## Dashboard Scaffold Notes
+
+- `npx create-next-app` requires network access blocked by sandbox — scaffold was created manually with equivalent files
+- Next.js 15 with Tailwind v4 uses `@import "tailwindcss"` in globals.css (not `@tailwind base/components/utilities`)
+- Tailwind v4 PostCSS config uses `@tailwindcss/postcss` plugin (not `tailwindcss` directly)
+- Scaffold includes: `package.json`, `next.config.mjs`, `postcss.config.mjs`, `app/globals.css`, `app/layout.js`, `app/page.js`
+- `dashboard/` is in `.gitignore` temporarily (TASK-19) — when implementing TASK-20+, replace `dashboard/` in .gitignore with `dashboard/node_modules/` and `dashboard/.next/` so API routes and pages can be committed normally
+
 ## Campaign Loader Notes
 
 - `hi-im-alex.json` exists in campaigns/ but has `active: false` — loader correctly skips it
