@@ -50,7 +50,7 @@
   - Depends: TASK-17, TASK-19
 - [x] TASK-21: Dashboard home page — dashboard/app/page.js. Shows: stats cards (total replies, today's replies, active campaigns), campaign list with toggle (active/inactive via JSON edit note), last 10 activity rows (campaign, post URL truncated, reply preview, timestamp). Uses fetch() to call the API routes. Tailwind styling. Verify: node --check dashboard/app/page.js.
   - Depends: TASK-20
-- [ ] TASK-22: Dashboard activity feed page — dashboard/app/activity/page.js. Full activity log table: timestamp, campaign, post URL (clickable), reply text (first 100 chars), match/skip indicator. Paginated (show 50 at a time). Verify: node --check dashboard/app/activity/page.js.
+- [x] TASK-22: Dashboard activity feed page — dashboard/app/activity/page.js. Full activity log table: timestamp, campaign, post URL (clickable), reply text (first 100 chars), match/skip indicator. Paginated (show 50 at a time). Verify: node --check dashboard/app/activity/page.js.
   - Depends: TASK-20
 
 ## Phase 9: Polish

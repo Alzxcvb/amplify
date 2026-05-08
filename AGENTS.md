@@ -133,3 +133,10 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `'use client'` directive at top of page.js enables useState/useEffect for client-side fetching from API routes
 - Stats shape from `/api/stats`: `{ totalReplies, totalSkipped, repliesByCampaign, last24hReplies }` — timestamps in DB are Unix seconds, convert with `new Date(ts * 1000)`
 - Activity shape from `/api/activity`: `{ type, campaign_id, post_url, comment_url, reply_text, reason, timestamp }` — type is 'reply' or 'skipped'
+
+## Activity Feed Page Notes
+
+- `dashboard/app/activity/page.js` is a client component with client-side pagination (PAGE_SIZE=50)
+- Fetches all 100 entries from `/api/activity` and paginates on the client — no server-side pagination needed
+- Pagination controls only render when `totalPages > 1`
+- `node --check` always fails on this file (JSX) — this is expected per Dashboard Page Notes above
