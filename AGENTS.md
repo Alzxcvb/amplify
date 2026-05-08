@@ -51,6 +51,14 @@ node src/index.js --campaign=arrival-pass --dry-run
 
 ---
 
+## Reddit Scraper Notes
+
+- `shreddit-post` (new Reddit) uses `permalink` and `post-title` attributes — query these with `el.getAttribute()` in `page.evaluate()`
+- `page.locator('shreddit-post, [data-testid="post-container"]').first().waitFor()` works as a unified wait for both Reddit UI versions
+- Promoted posts: check `el.getAttribute('promoted') !== null` for shreddit-post; check `el.closest('[data-promoted="true"]')` for old Reddit containers
+- `page.locator('body').textContent()` can detect "you are doing that too much" rate-limit pages
+- `response.status()` from `page.goto()` is the cleanest way to detect 404/429
+
 ## Campaign Loader Notes
 
 - `hi-im-alex.json` exists in campaigns/ but has `active: false` — loader correctly skips it

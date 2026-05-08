@@ -14,7 +14,7 @@
 
 ## Phase 3: Reddit Platform
 
-- [ ] TASK-07: Reddit subreddit scraper — src/platforms/reddit/scraper.js. scrapeSubreddit(page, subredditName) navigates to https://www.reddit.com/r/{sub}/new, scrolls 3x (1500px each, 1.5s between), scrapes post cards: title, permalink URL, post ID. Returns array of {title, url, id, subreddit}. Skip promoted/ad posts. Handle: not found (return []), rate limit page (return []). node --check verify.
+- [x] TASK-07: Reddit subreddit scraper — src/platforms/reddit/scraper.js. scrapeSubreddit(page, subredditName) navigates to https://www.reddit.com/r/{sub}/new, scrolls 3x (1500px each, 1.5s between), scrapes post cards: title, permalink URL, post ID. Returns array of {title, url, id, subreddit}. Skip promoted/ad posts. Handle: not found (return []), rate limit page (return []). node --check verify.
 - [ ] TASK-08: Reddit comment scraper — add scrapePostComments(page, postUrl) to scraper.js. Navigates to postUrl, waits for comments to load, scrapes top-level comments only: author, body text, comment permalink. Returns array of {author, body, url}. Limit 25 comments. Skip [deleted], [removed], AutoModerator. node --check verify.
 - [ ] TASK-09: Reddit reply poster — src/platforms/reddit/poster.js. postReply(page, commentUrl, replyText, options={}) function. options.dryRun defaults to false. Steps: navigate to commentUrl, find reply button on that comment, click it, wait for reply textarea, type replyText at 60ms/char, click Save (submit) button. If dryRun=true: log "[DRY RUN] Would post:" + replyText and return without clicking Save. Throw descriptive errors for: locked post, not logged in, rate limited. node --check verify.
 
