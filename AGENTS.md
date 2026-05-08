@@ -47,3 +47,11 @@ node src/index.js --campaign=arrival-pass --dry-run
 ## Patterns That Don't Work
 
 - (none yet)
+
+---
+
+## Campaign Loader Notes
+
+- `hi-im-alex.json` exists in campaigns/ but has `active: false` — loader correctly skips it
+- loader silently skips campaigns with JSON parse errors, missing required fields, or `active: false`
+- campaigns dir path is resolved relative to loader.js: `../../campaigns`
