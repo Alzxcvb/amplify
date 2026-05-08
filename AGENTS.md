@@ -140,3 +140,9 @@ node src/index.js --campaign=arrival-pass --dry-run
 - Fetches all 100 entries from `/api/activity` and paginates on the client — no server-side pagination needed
 - Pagination controls only render when `totalPages > 1`
 - `node --check` always fails on this file (JSX) — this is expected per Dashboard Page Notes above
+
+## Integration Dry-Run Test Notes
+
+- `db.js` has no `initDb` export — call `getDb()` to trigger initialization (lazy singleton)
+- `test/dry-run-test.js` catches the CDP connection error (ECONNREFUSED) and exits 0 with a warning — Chrome not running is not a test failure
+- Run: `node test/dry-run-test.js` — must exit 0 whether or not Chrome is running

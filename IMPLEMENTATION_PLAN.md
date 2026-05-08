@@ -56,5 +56,5 @@
 ## Phase 9: Polish
 
 - [x] TASK-23: README.md — write a clear README covering: (1) what amplify does, (2) prerequisites (Chrome CDP, logged-in accounts), (3) how to create a campaign JSON, (4) how to run (dry-run and live), (5) how to start the dashboard. Under 100 lines. No unnecessary sections.
-- [ ] TASK-24: Integration dry-run test — test/dry-run-test.js. Script that: (1) loads campaigns, (2) initializes DB, (3) connects to browser via CDP (skip if Chrome not running — print warning and exit 0), (4) navigates to https://www.reddit.com/r/malaysia/new/, (5) calls scrapeSubreddit, (6) prints first 3 post titles found. Run: node test/dry-run-test.js. Must exit 0. This validates the full Reddit scraping pipeline without posting anything.
+- [x] TASK-24: Integration dry-run test — test/dry-run-test.js. Script that: (1) loads campaigns, (2) initializes DB, (3) connects to browser via CDP (skip if Chrome not running — print warning and exit 0), (4) navigates to https://www.reddit.com/r/malaysia/new/, (5) calls scrapeSubreddit, (6) prints first 3 post titles found. Run: node test/dry-run-test.js. Must exit 0. This validates the full Reddit scraping pipeline without posting anything.
   - Depends: TASK-07, TASK-02
