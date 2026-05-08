@@ -136,7 +136,7 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
                   stats[campaign.id].skipped++;
                 }
 
-                await sleep(SCROLL_PAUSE_MS);
+                await sleep(SCROLL_PAUSE_MS * (0.8 + Math.random() * 0.4));
               } else {
                 stats[campaign.id].skipped++;
               }

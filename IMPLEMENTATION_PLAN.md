@@ -22,7 +22,7 @@
 
 - [x] TASK-10: Config + rate limits — src/config.js. Export constants: MAX_REPLIES_PER_CAMPAIGN_PER_HOUR=5, MIN_SECONDS_BETWEEN_REPLIES=120, CONFIDENCE_THRESHOLD=8, TYPING_DELAY_MS=80, SCROLL_PAUSE_MS=1500, AI_RESPONSE_TIMEOUT_MS=60000. node --check verify.
 - [x] TASK-11: Main bot loop — src/bot.js and src/index.js. index.js: parse --dry-run and --campaign=id flags from process.argv, call runBot({dryRun, campaignFilter}). bot.js runBot(): load campaigns (filter if campaignFilter set), connect browser, for each campaign → for each reddit subreddit → scrapeSubreddit → filter seen → for each post → scrapePostComments → for each comment → check rate limit → classifyAndReply → if match+confidence>=threshold → postReply → logReply. Catch per-comment errors (log + continue). Print chalk summary at end. node --check verify.
-- [ ] TASK-12: Rate limit enforcement in bot — in bot.js runBot(), before calling postReply: (1) check getRecentReplies(campaignId, 1) < MAX_REPLIES_PER_CAMPAIGN_PER_HOUR, (2) check last sent reply timestamp > MIN_SECONDS_BETWEEN_REPLIES ago. If either check fails: log yellow "rate limit reached, skipping" and break inner loop. Add jitter to delays: multiply any sleep by (0.8 + Math.random()*0.4). node --check verify.
+- [x] TASK-12: Rate limit enforcement in bot — in bot.js runBot(), before calling postReply: (1) check getRecentReplies(campaignId, 1) < MAX_REPLIES_PER_CAMPAIGN_PER_HOUR, (2) check last sent reply timestamp > MIN_SECONDS_BETWEEN_REPLIES ago. If either check fails: log yellow "rate limit reached, skipping" and break inner loop. Add jitter to delays: multiply any sleep by (0.8 + Math.random()*0.4). node --check verify.
 
 ## Phase 5: Campaigns + Smoke Test
 
