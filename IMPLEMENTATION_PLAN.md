@@ -31,7 +31,7 @@
 
 ## Phase 6: Reddit Keyword Search
 
-- [ ] TASK-15: Reddit search scraper — add scrapeRedditSearch(page, query) to src/platforms/reddit/scraper.js. Navigates to https://www.reddit.com/search/?q={encodeURIComponent(query)}&sort=new&t=week, scrolls 3x, scrapes post results same format as scrapeSubreddit. This lets campaigns find posts by keyword across ALL of Reddit, not just specific subreddits. node --check verify.
+- [x] TASK-15: Reddit search scraper — add scrapeRedditSearch(page, query) to src/platforms/reddit/scraper.js. Navigates to https://www.reddit.com/search/?q={encodeURIComponent(query)}&sort=new&t=week, scrolls 3x, scrapes post results same format as scrapeSubreddit. This lets campaigns find posts by keyword across ALL of Reddit, not just specific subreddits. node --check verify.
   - Depends: TASK-07
 - [ ] TASK-16: Keyword scan support in bot loop — update bot.js runBot() to also run scrapeRedditSearch for each pain_point keyword in the campaign (first 3 keywords only to avoid overload). Deduplicate results with seen_posts. Add to the same classify-and-reply flow. node --check verify.
   - Depends: TASK-11, TASK-15

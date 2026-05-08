@@ -79,6 +79,12 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `browser.close()` on a CDP-connected browser only disconnects (doesn't kill Chrome) — safe to call in finally
 - Break the inner comment loop (not just continue) when rate limit is hit — avoids pointless AI calls
 
+## Reddit Search Scraper Notes
+
+- `scrapeRedditSearch(page, query)` hits `https://www.reddit.com/search/?q=...&sort=new&t=week` — same scroll/scrape pattern as `scrapeSubreddit`
+- Subreddit extracted from `subreddit-prefixed-name` attribute on `shreddit-post` first, then regex on the permalink URL (`/r/([^/]+)/`)
+- Exported from scraper.js alongside `scrapeSubreddit` and `scrapePostComments`
+
 ## Campaign Loader Notes
 
 - `hi-im-alex.json` exists in campaigns/ but has `active: false` — loader correctly skips it
