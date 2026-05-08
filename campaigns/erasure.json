@@ -1,0 +1,37 @@
+{
+  "id": "erasure",
+  "product": "Erasure",
+  "url": "https://github.com/Alzxcvb/erasure",
+  "pitch": "Open-source CLI that removes your personal data from California data brokers (596 brokers). Free alternative to DeleteMe — one command to submit removal requests in bulk.",
+  "pain_points": [
+    "data broker",
+    "remove personal information",
+    "opt out data broker",
+    "my data online",
+    "found my address online",
+    "people finder site",
+    "spokeo whitepages",
+    "deleteme alternative",
+    "remove myself from internet",
+    "data privacy removal",
+    "stop junk mail",
+    "personal info exposed",
+    "california privacy",
+    "ccpa opt out"
+  ],
+  "ai_url": "https://claude.ai/new",
+  "active": true,
+  "platforms": {
+    "reddit": [
+      "r/privacy",
+      "r/digitalnomad",
+      "r/personalfinance",
+      "r/technology",
+      "r/netsec",
+      "r/selfhosted",
+      "r/asknetsec"
+    ],
+    "instagram": [],
+    "facebook": []
+  }
+}

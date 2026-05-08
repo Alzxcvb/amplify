@@ -1,0 +1,37 @@
+{
+  "id": "ns-academy",
+  "product": "NS Academy AI Bootcamp",
+  "url": "https://ns.academy",
+  "pitch": "4-day hands-on AI bootcamp for remote founders and solopreneurs in Southeast Asia. Learn to build and deploy AI agents, automate your business, and use Claude Code. $597, held at Network School in Forest City, Malaysia.",
+  "pain_points": [
+    "implement ai in my business",
+    "ai for small business",
+    "how to use ai",
+    "automate my business",
+    "claude code",
+    "ai tools for entrepreneurs",
+    "learn ai",
+    "ai productivity",
+    "chatgpt for business",
+    "ai automation",
+    "struggling with ai",
+    "don't know how to use ai",
+    "ai consultant",
+    "hire ai developer"
+  ],
+  "ai_url": "https://claude.ai/new",
+  "active": true,
+  "platforms": {
+    "reddit": [
+      "r/entrepreneur",
+      "r/smallbusiness",
+      "r/digitalnomad",
+      "r/AItools",
+      "r/ChatGPT",
+      "r/ClaudeAI",
+      "r/Entrepreneur"
+    ],
+    "instagram": [],
+    "facebook": []
+  }
+}

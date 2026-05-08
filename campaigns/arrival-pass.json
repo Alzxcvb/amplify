@@ -1,0 +1,37 @@
+{
+  "id": "arrival-pass",
+  "product": "Arrival Pass",
+  "url": "https://arrivalpass.app",
+  "pitch": "iOS app that autofills Malaysia's Digital Arrival Card (MDAC) in one tap. Saves your passport info, travel details, and address so you never fill the form manually again.",
+  "pain_points": [
+    "malaysia digital arrival card",
+    "mdac",
+    "trouble filling arrival card",
+    "malaysia arrival form",
+    "digital arrival card malaysia",
+    "mdac help",
+    "arrival card problem",
+    "customs form malaysia",
+    "malaysia immigration form",
+    "myig arrival",
+    "arrival card error",
+    "mdac not working",
+    "arrival card app"
+  ],
+  "ai_url": "https://claude.ai/new",
+  "active": true,
+  "platforms": {
+    "reddit": [
+      "r/malaysia",
+      "r/kualalumpur",
+      "r/digitalnomad",
+      "r/travel",
+      "r/solotravel",
+      "r/expats",
+      "r/backpacking",
+      "r/malaysia_travel"
+    ],
+    "instagram": [],
+    "facebook": []
+  }
+}

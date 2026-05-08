@@ -1,0 +1,35 @@
+{
+  "id": "hi-im-alex",
+  "product": "Hi I'm Alex — Claude Code Consulting",
+  "url": "https://hiimalex.ai",
+  "pitch": "Enterprise Claude Code consulting. Alex builds AI agent systems, automates workflows, and deploys production-grade Claude integrations for investment firms, hedge funds, and PE/VC. Available for retainers.",
+  "pain_points": [
+    "ai consulting",
+    "claude code",
+    "anthropic consultant",
+    "ai agent development",
+    "enterprise ai",
+    "ai for hedge fund",
+    "ai for finance",
+    "investment firm ai",
+    "claude api",
+    "anthropic api",
+    "ai workflow automation",
+    "agentic ai",
+    "ai developer for hire",
+    "custom ai solution"
+  ],
+  "ai_url": "https://claude.ai/new",
+  "active": false,
+  "platforms": {
+    "reddit": [
+      "r/algotrading",
+      "r/quant",
+      "r/financialindependence",
+      "r/ClaudeAI",
+      "r/AItools"
+    ],
+    "instagram": [],
+    "facebook": []
+  }
+}
