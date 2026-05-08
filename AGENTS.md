@@ -99,6 +99,11 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `getStats()` queries totals and per-campaign breakdowns with simple COUNT aggregates — repliesByCampaign is keyed by campaign_id string
 - Both functions are exported from db.js alongside existing exports
 
+## Console Stats Notes
+
+- `printSummary(stats, dryRun)` in bot.js prints both: (1) per-run table (campaign | posts | comments | matches | replies | skipped) and (2) all-time DB stats from `getStats()` (total replies, skipped, last 24h, per-campaign breakdown)
+- `getStats` is imported from `./state/db` alongside the other db exports — add it to the destructure in bot.js
+
 ## Campaign Loader Notes
 
 - `hi-im-alex.json` exists in campaigns/ but has `active: false` — loader correctly skips it

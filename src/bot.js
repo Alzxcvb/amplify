@@ -6,7 +6,7 @@ const { loadCampaigns } = require('./campaigns/loader');
 const { scrapeSubreddit, scrapePostComments, scrapeRedditSearch } = require('./platforms/reddit/scraper');
 const { postReply } = require('./platforms/reddit/poster');
 const { classifyAndReply } = require('./ai/classifier');
-const { hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies } = require('./state/db');
+const { hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies, getStats } = require('./state/db');
 const {
   MAX_REPLIES_PER_CAMPAIGN_PER_HOUR,
   MIN_SECONDS_BETWEEN_REPLIES,
@@ -184,12 +184,22 @@ function printSummary(stats, dryRun) {
   console.log('\n' + chalk.bold('=== Run Summary' + (dryRun ? ' (DRY RUN)' : '') + ' ==='));
   const COL = [20, 8, 10, 9, 9, 8];
   const headers = ['Campaign', 'Posts', 'Comments', 'Matches', 'Replies', 'Skipped'];
-  console.log(
-    chalk.bold(headers.map((h, i) => h.padEnd(COL[i])).join(''))
-  );
+  console.log(chalk.bold(headers.map((h, i) => h.padEnd(COL[i])).join('')));
   for (const [id, s] of Object.entries(stats)) {
     const row = [id, s.postsScanned, s.commentsChecked, s.matchesFound, s.repliesPosted, s.skipped];
     console.log(row.map((v, i) => String(v).padEnd(COL[i])).join(''));
+  }
+
+  const dbStats = getStats();
+  console.log('\n' + chalk.bold('=== All-Time Stats ==='));
+  console.log(chalk.gray('Total replies posted : ') + chalk.green(dbStats.totalReplies));
+  console.log(chalk.gray('Total skipped        : ') + chalk.yellow(dbStats.totalSkipped));
+  console.log(chalk.gray('Replies last 24h     : ') + chalk.cyan(dbStats.last24hReplies));
+  if (Object.keys(dbStats.repliesByCampaign).length > 0) {
+    console.log(chalk.gray('By campaign:'));
+    for (const [cid, n] of Object.entries(dbStats.repliesByCampaign)) {
+      console.log('  ' + chalk.gray(cid.padEnd(22)) + chalk.green(n));
+    }
   }
 }
 
