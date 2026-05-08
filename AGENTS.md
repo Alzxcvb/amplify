@@ -72,6 +72,13 @@ node src/index.js --campaign=arrival-pass --dry-run
 - Save/submit button: try `button[type="submit"], button.save` with `.last()` first; fall back to `button` filtered by text `/^(save|comment)$/i`
 - dryRun check must happen AFTER the reply box appears (so we prove the flow works) but BEFORE typing and submitting
 
+## Bot Loop Notes
+
+- `campaign.platforms.reddit` is a flat array of subreddit name strings (e.g. `["r/malaysia", "r/travel"]`), NOT an object with a `subreddits` key
+- Rate limit check uses `getRecentReplies(campaignId, 1)` — check both count < MAX and elapsed > MIN before classifying
+- `browser.close()` on a CDP-connected browser only disconnects (doesn't kill Chrome) — safe to call in finally
+- Break the inner comment loop (not just continue) when rate limit is hit — avoids pointless AI calls
+
 ## Campaign Loader Notes
 
 - `hi-im-alex.json` exists in campaigns/ but has `active: false` — loader correctly skips it
