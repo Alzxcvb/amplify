@@ -28,3 +28,33 @@
 
 - [ ] TASK-13: Full campaign configs — create campaigns/erasure.json (digital privacy pain points, subreddits: r/privacy, r/digitalnomad, r/personalfinance, r/technology) and campaigns/ns-academy.json (AI implementation for small business, subreddits: r/entrepreneur, r/smallbusiness, r/digitalnomad, r/AItools). Update campaigns/arrival-pass.json to add subreddits: r/solotravel, r/expats, r/travel, r/backpacking. Verify all 3 load: node -e "const {loadCampaigns}=require('./src/campaigns/loader');console.log(loadCampaigns().map(c=>c.id))".
 - [ ] TASK-14: Smoke test — test/smoke.js. Tests: (1) loadCampaigns() returns 3 campaigns, (2) DB init creates tables, (3) hasSeenPost returns false for new URL, (4) markPostSeen + hasSeenPost round-trip returns true, (5) logReply inserts row, (6) getRecentReplies returns 1 after logReply, (7) config constants are all defined + sane values. Run: node test/smoke.js. All 7 tests must pass with green output.
+
+## Phase 6: Reddit Keyword Search
+
+- [ ] TASK-15: Reddit search scraper — add scrapeRedditSearch(page, query) to src/platforms/reddit/scraper.js. Navigates to https://www.reddit.com/search/?q={encodeURIComponent(query)}&sort=new&t=week, scrolls 3x, scrapes post results same format as scrapeSubreddit. This lets campaigns find posts by keyword across ALL of Reddit, not just specific subreddits. node --check verify.
+  - Depends: TASK-07
+- [ ] TASK-16: Keyword scan support in bot loop — update bot.js runBot() to also run scrapeRedditSearch for each pain_point keyword in the campaign (first 3 keywords only to avoid overload). Deduplicate results with seen_posts. Add to the same classify-and-reply flow. node --check verify.
+  - Depends: TASK-11, TASK-15
+
+## Phase 7: Activity Log + Stats
+
+- [ ] TASK-17: Activity log query functions — add to src/state/db.js: getActivityLog(limit=50) returns last N rows from sent_replies joined with skipped_posts ordered by posted_at desc. getStats() returns {totalReplies, totalSkipped, repliesByCAMPAIGN: {}, last24hReplies}. node --check verify.
+  - Depends: TASK-03
+- [ ] TASK-18: Console stats report — at end of runBot() in bot.js, after the run completes, print a formatted chalk table: campaign name | posts scanned | comments checked | matches found | replies posted | skipped. node --check verify.
+  - Depends: TASK-11, TASK-17
+
+## Phase 8: Web Dashboard (Next.js)
+
+- [ ] TASK-19: Next.js dashboard scaffold — inside amplify/dashboard/ run: npx create-next-app@latest . --yes --no-git --tailwind --app. Add dashboard/ to .gitignore temporarily. Verify: dashboard/ exists with package.json and app/ dir. No node --check needed; just verify the directory structure.
+- [ ] TASK-20: Dashboard API routes — create dashboard/app/api/campaigns/route.js (GET: return loadCampaigns()), dashboard/app/api/activity/route.js (GET: return getActivityLog(100)), dashboard/app/api/stats/route.js (GET: return getStats()). API routes import from ../../../src/ using relative paths. node --check verify on each route file.
+  - Depends: TASK-17, TASK-19
+- [ ] TASK-21: Dashboard home page — dashboard/app/page.js. Shows: stats cards (total replies, today's replies, active campaigns), campaign list with toggle (active/inactive via JSON edit note), last 10 activity rows (campaign, post URL truncated, reply preview, timestamp). Uses fetch() to call the API routes. Tailwind styling. Verify: node --check dashboard/app/page.js.
+  - Depends: TASK-20
+- [ ] TASK-22: Dashboard activity feed page — dashboard/app/activity/page.js. Full activity log table: timestamp, campaign, post URL (clickable), reply text (first 100 chars), match/skip indicator. Paginated (show 50 at a time). Verify: node --check dashboard/app/activity/page.js.
+  - Depends: TASK-20
+
+## Phase 9: Polish
+
+- [ ] TASK-23: README.md — write a clear README covering: (1) what amplify does, (2) prerequisites (Chrome CDP, logged-in accounts), (3) how to create a campaign JSON, (4) how to run (dry-run and live), (5) how to start the dashboard. Under 100 lines. No unnecessary sections.
+- [ ] TASK-24: Integration dry-run test — test/dry-run-test.js. Script that: (1) loads campaigns, (2) initializes DB, (3) connects to browser via CDP (skip if Chrome not running — print warning and exit 0), (4) navigates to https://www.reddit.com/r/malaysia/new/, (5) calls scrapeSubreddit, (6) prints first 3 post titles found. Run: node test/dry-run-test.js. Must exit 0. This validates the full Reddit scraping pipeline without posting anything.
+  - Depends: TASK-07, TASK-02
