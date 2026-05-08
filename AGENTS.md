@@ -40,7 +40,7 @@ node src/index.js --campaign=arrival-pass --dry-run
 
 ## Patterns That Work
 
-- (none yet — Claude will add entries as it encounters issues)
+- `browser.contexts()[0]` gives the existing Chrome context; fall back to `browser.newContext()` if none exist. This avoids creating duplicate browser contexts when reusing a running Chrome instance.
 
 ---
 

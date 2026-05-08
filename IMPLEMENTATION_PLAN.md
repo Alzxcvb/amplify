@@ -3,7 +3,7 @@
 ## Phase 1: Foundation
 
 - [x] TASK-01: Project scaffold — package.json with playwright + better-sqlite3 + chalk + dotenv, .gitignore, empty src/index.js placeholder, run npm install, verify node --check src/index.js
-- [ ] TASK-02: Playwright CDP connector — src/browser/connector.js with connectBrowser() (connects to port 9222), openNewTab(browser, url), closePage(page). Clear error if Chrome not running. node --check verify.
+- [x] TASK-02: Playwright CDP connector — src/browser/connector.js with connectBrowser() (connects to port 9222), openNewTab(browser, url), closePage(page). Clear error if Chrome not running. node --check verify.
 - [ ] TASK-03: SQLite state manager — src/state/db.js. Tables: seen_posts(platform, url, scraped_at), sent_replies(campaign_id, post_url, comment_url, reply_text, posted_at), skipped_posts(campaign_id, post_url, reason, skipped_at). Functions: hasSeenPost(url), markPostSeen(platform, url), logReply(...), logSkipped(...), getRecentReplies(campaignId, hours). node --check verify.
 - [ ] TASK-04: Campaign config loader — src/campaigns/loader.js. loadCampaigns() reads all .json files from campaigns/ dir, validates required fields (id, product, url, pitch, pain_points array, platforms object), returns valid array. Create campaigns/arrival-pass.json with full config per specs/campaign-schema.md. node --check + node -e verify.
 
