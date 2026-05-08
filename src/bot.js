@@ -3,7 +3,7 @@
 const chalk = require('chalk');
 const { connectBrowser, openNewTab, closePage } = require('./browser/connector');
 const { loadCampaigns } = require('./campaigns/loader');
-const { scrapeSubreddit, scrapePostComments } = require('./platforms/reddit/scraper');
+const { scrapeSubreddit, scrapePostComments, scrapeRedditSearch } = require('./platforms/reddit/scraper');
 const { postReply } = require('./platforms/reddit/poster');
 const { classifyAndReply } = require('./ai/classifier');
 const { hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies } = require('./state/db');
@@ -27,6 +27,74 @@ function isRateLimited(campaignId) {
     if (elapsed < MIN_SECONDS_BETWEEN_REPLIES) return { limited: true, reason: `min gap (${elapsed}s < ${MIN_SECONDS_BETWEEN_REPLIES}s)` };
   }
   return { limited: false };
+}
+
+async function processNewPosts(browser, page, posts, campaign, stats, dryRun) {
+  for (const post of posts) {
+    markPostSeen('reddit', post.url);
+    stats[campaign.id].postsScanned++;
+
+    let comments;
+    try {
+      comments = await scrapePostComments(page, post.url);
+    } catch (err) {
+      console.warn(chalk.yellow(`[bot] scrapePostComments error for ${post.url}: ${err.message}`));
+      continue;
+    }
+
+    let rateLimitBroken = false;
+    for (const comment of comments) {
+      stats[campaign.id].commentsChecked++;
+
+      const rl = isRateLimited(campaign.id);
+      if (rl.limited) {
+        console.log(chalk.yellow(`[bot] Rate limit reached for ${campaign.id}: ${rl.reason}`));
+        rateLimitBroken = true;
+        break;
+      }
+
+      const postData = {
+        url: post.url,
+        title: post.title,
+        body: '',
+        commentUrl: comment.url,
+        commentBody: comment.body,
+        author: comment.author,
+        platform: 'reddit',
+      };
+
+      let result;
+      try {
+        result = await classifyAndReply(browser, postData, campaign);
+      } catch (err) {
+        console.warn(chalk.yellow(`[bot] classifyAndReply error: ${err.message}`));
+        continue;
+      }
+
+      if (result.match && result.confidence >= CONFIDENCE_THRESHOLD && result.reply) {
+        stats[campaign.id].matchesFound++;
+        console.log(chalk.green(`[bot] Match (confidence ${result.confidence}): ${comment.url}`));
+
+        try {
+          await postReply(page, comment.url, result.reply, { dryRun });
+          logReply(campaign.id, post.url, comment.url, result.reply);
+          stats[campaign.id].repliesPosted++;
+          console.log(chalk.green(`[bot] Reply posted${dryRun ? ' (dry run)' : ''}`));
+        } catch (err) {
+          console.warn(chalk.yellow(`[bot] postReply error: ${err.message}`));
+          logSkipped(campaign.id, post.url, `postReply: ${err.message}`);
+          stats[campaign.id].skipped++;
+        }
+
+        await sleep(SCROLL_PAUSE_MS * (0.8 + Math.random() * 0.4));
+      } else {
+        stats[campaign.id].skipped++;
+      }
+    }
+
+    if (rateLimitBroken) return true;
+  }
+  return false;
 }
 
 async function runBot({ dryRun = false, campaignFilter = null } = {}) {
@@ -80,70 +148,26 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
           const newPosts = posts.filter(p => !hasSeenPost(p.url));
           console.log(chalk.gray(`[bot] ${subreddit}: ${posts.length} posts, ${newPosts.length} new`));
 
-          for (const post of newPosts) {
-            markPostSeen('reddit', post.url);
-            stats[campaign.id].postsScanned++;
+          await processNewPosts(browser, page, newPosts, campaign, stats, dryRun);
+        }
 
-            let comments;
-            try {
-              comments = await scrapePostComments(page, post.url);
-            } catch (err) {
-              console.warn(chalk.yellow(`[bot] scrapePostComments error for ${post.url}: ${err.message}`));
-              continue;
-            }
+        const keywords = (campaign.pain_points || []).slice(0, 3);
+        for (const keyword of keywords) {
+          console.log(chalk.blue(`[bot] Keyword search: "${keyword}" for campaign: ${campaign.id}`));
 
-            let rateLimitBroken = false;
-            for (const comment of comments) {
-              stats[campaign.id].commentsChecked++;
-
-              const rl = isRateLimited(campaign.id);
-              if (rl.limited) {
-                console.log(chalk.yellow(`[bot] Rate limit reached for ${campaign.id}: ${rl.reason}`));
-                rateLimitBroken = true;
-                break;
-              }
-
-              const postData = {
-                url: post.url,
-                title: post.title,
-                body: '',
-                commentUrl: comment.url,
-                commentBody: comment.body,
-                author: comment.author,
-                platform: 'reddit',
-              };
-
-              let result;
-              try {
-                result = await classifyAndReply(browser, postData, campaign);
-              } catch (err) {
-                console.warn(chalk.yellow(`[bot] classifyAndReply error: ${err.message}`));
-                continue;
-              }
-
-              if (result.match && result.confidence >= CONFIDENCE_THRESHOLD && result.reply) {
-                stats[campaign.id].matchesFound++;
-                console.log(chalk.green(`[bot] Match (confidence ${result.confidence}): ${comment.url}`));
-
-                try {
-                  await postReply(page, comment.url, result.reply, { dryRun });
-                  logReply(campaign.id, post.url, comment.url, result.reply);
-                  stats[campaign.id].repliesPosted++;
-                  console.log(chalk.green(`[bot] Reply posted${dryRun ? ' (dry run)' : ''}`));
-                } catch (err) {
-                  console.warn(chalk.yellow(`[bot] postReply error: ${err.message}`));
-                  logSkipped(campaign.id, post.url, `postReply: ${err.message}`);
-                  stats[campaign.id].skipped++;
-                }
-
-                await sleep(SCROLL_PAUSE_MS * (0.8 + Math.random() * 0.4));
-              } else {
-                stats[campaign.id].skipped++;
-              }
-            }
-
-            if (rateLimitBroken) break;
+          let searchPosts;
+          try {
+            searchPosts = await scrapeRedditSearch(page, keyword);
+          } catch (err) {
+            console.warn(chalk.yellow(`[bot] scrapeRedditSearch error for "${keyword}": ${err.message}`));
+            continue;
           }
+
+          const newSearchPosts = searchPosts.filter(p => !hasSeenPost(p.url));
+          console.log(chalk.gray(`[bot] Keyword "${keyword}": ${searchPosts.length} posts, ${newSearchPosts.length} new`));
+
+          const rateLimited = await processNewPosts(browser, page, newSearchPosts, campaign, stats, dryRun);
+          if (rateLimited) break;
         }
       } finally {
         await closePage(page);

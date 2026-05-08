@@ -85,6 +85,14 @@ node src/index.js --campaign=arrival-pass --dry-run
 - Subreddit extracted from `subreddit-prefixed-name` attribute on `shreddit-post` first, then regex on the permalink URL (`/r/([^/]+)/`)
 - Exported from scraper.js alongside `scrapeSubreddit` and `scrapePostComments`
 
+## Bot Keyword Search Notes
+
+- `campaign.pain_points` is a flat array of short keyword strings — safe to pass directly as Reddit search queries
+- Keyword scan uses `campaign.pain_points.slice(0, 3)` — first 3 keywords only to avoid overload
+- `processNewPosts(browser, page, posts, campaign, stats, dryRun)` is the shared helper for both subreddit and keyword-search flows — returns `true` if rate limit was hit
+- Subreddit loop ignores the rate-limit return (continues to next subreddit); keyword loop breaks on rate limit
+- Posts seen during the subreddit scan are already marked in `seen_posts`, so keyword results that overlap are automatically deduplicated
+
 ## Campaign Loader Notes
 
 - `hi-im-alex.json` exists in campaigns/ but has `active: false` — loader correctly skips it
