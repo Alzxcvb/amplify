@@ -200,3 +200,12 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `flagSubreddit` also uses upsert so it works whether or not the row already exists
 - `isSubredditFlagged` returns `false` (not an error) when the subreddit has no row yet
 - `getSubredditMatchRatio` returns `0` when `comments_checked == 0` to avoid division-by-zero
+
+## Subreddit Stats Bot Wiring Notes
+
+- Import `updateSubredditStats`, `flagSubreddit`, `isSubredditFlagged`, `getSubredditStats` from `./state/db` in bot.js
+- Skip flagged subreddits at the TOP of the subreddit loop (before scraping) — push to `stats[campaign.id].flaggedSubreddits` for display
+- Track comment/match deltas per subreddit: snapshot `stats[campaign.id].commentsChecked` + `matchesFound` before `processNewPosts`, compute delta after
+- `getSubredditStats(campaignId)` returns ALL subreddits for the campaign — `.find(s => s.subreddit === subreddit)` to get the row for auto-flag check
+- Auto-flag condition: `row.scans >= 3 && row.matches_found === 0` — fire after every `updateSubredditStats` call
+- `stats[campaign.id].flaggedSubreddits` accumulates both skipped-because-flagged and newly-flagged-this-run for the summary printout

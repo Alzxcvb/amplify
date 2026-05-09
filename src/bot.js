@@ -6,7 +6,7 @@ const { loadCampaigns } = require('./campaigns/loader');
 const { scrapeSubreddit, scrapePostComments, scrapeRedditSearch } = require('./platforms/reddit/scraper');
 const { postReply } = require('./platforms/reddit/poster');
 const { classifyAndReply } = require('./ai/classifier');
-const { hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies, getStats, logInjection } = require('./state/db');
+const { hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats } = require('./state/db');
 const { SCROLL_PAUSE_MS, resolveSettings } = require('./config');
 
 function sleep(ms) {
@@ -125,7 +125,7 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
 
   try {
     for (const campaign of campaigns) {
-      stats[campaign.id] = { postsScanned: 0, commentsChecked: 0, matchesFound: 0, repliesPosted: 0, skipped: 0 };
+      stats[campaign.id] = { postsScanned: 0, commentsChecked: 0, matchesFound: 0, repliesPosted: 0, skipped: 0, flaggedSubreddits: [] };
 
       const resolvedSettings = resolveSettings(campaign.id, campaign);
       console.log(chalk.dim(`[bot] ${campaign.id} settings: confidence_threshold=${resolvedSettings.confidence_threshold} max_comments=${resolvedSettings.max_comments_per_post} max_replies_per_hour=${resolvedSettings.max_replies_per_hour} min_gap=${resolvedSettings.min_seconds_between_replies}s post_age_days=${resolvedSettings.post_age_days} reply_style="${resolvedSettings.reply_style}"`));
@@ -140,6 +140,12 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
 
       try {
         for (const subreddit of subreddits) {
+          if (isSubredditFlagged(campaign.id, subreddit)) {
+            console.log(chalk.red(`[bot] Skipping flagged subreddit: ${subreddit}`));
+            stats[campaign.id].flaggedSubreddits.push(subreddit);
+            continue;
+          }
+
           console.log(chalk.blue(`[bot] Scraping ${subreddit} for campaign: ${campaign.id}`));
 
           let posts;
@@ -153,7 +159,26 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
           const newPosts = posts.filter(p => !hasSeenPost(p.url));
           console.log(chalk.gray(`[bot] ${subreddit}: ${posts.length} posts, ${newPosts.length} new`));
 
+          const beforeComments = stats[campaign.id].commentsChecked;
+          const beforeMatches = stats[campaign.id].matchesFound;
+
           await processNewPosts(browser, page, newPosts, campaign, stats, dryRun, resolvedSettings);
+
+          const deltaComments = stats[campaign.id].commentsChecked - beforeComments;
+          const deltaMatches = stats[campaign.id].matchesFound - beforeMatches;
+
+          updateSubredditStats(campaign.id, subreddit, {
+            postsFound: posts.length,
+            commentsChecked: deltaComments,
+            matchesFound: deltaMatches,
+          });
+
+          const subRow = getSubredditStats(campaign.id).find(s => s.subreddit === subreddit);
+          if (subRow && subRow.scans >= 3 && subRow.matches_found === 0) {
+            flagSubreddit(campaign.id, subreddit, 'no_matches_after_3_scans');
+            console.log(chalk.red(`[bot] Auto-flagged ${subreddit}: no matches after ${subRow.scans} scans`));
+            stats[campaign.id].flaggedSubreddits.push(subreddit);
+          }
         }
 
         const keywords = (campaign.pain_points || []).slice(0, 3);
@@ -193,6 +218,9 @@ function printSummary(stats, dryRun) {
   for (const [id, s] of Object.entries(stats)) {
     const row = [id, s.postsScanned, s.commentsChecked, s.matchesFound, s.repliesPosted, s.skipped];
     console.log(row.map((v, i) => String(v).padEnd(COL[i])).join(''));
+    if (s.flaggedSubreddits && s.flaggedSubreddits.length > 0) {
+      console.log(chalk.red(`  [FLAGGED] ${s.flaggedSubreddits.join(', ')}`));
+    }
   }
 
   const dbStats = getStats();
