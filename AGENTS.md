@@ -209,3 +209,11 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `getSubredditStats(campaignId)` returns ALL subreddits for the campaign — `.find(s => s.subreddit === subreddit)` to get the row for auto-flag check
 - Auto-flag condition: `row.scans >= 3 && row.matches_found === 0` — fire after every `updateSubredditStats` call
 - `stats[campaign.id].flaggedSubreddits` accumulates both skipped-because-flagged and newly-flagged-this-run for the summary printout
+
+## Subreddit Discovery Module Notes
+
+- `discoverSubreddits(browser, campaign, flaggedList)` lives in `src/discovery/subreddit-finder.js`
+- On askClaude failure, returns `[]` (empty array) — callers should treat empty result as no-op
+- Strips markdown code fences from response before JSON.parse; falls back to regex `\[[\s\S]*?\]` extraction if top-level parse fails
+- Validates each entry with `s.startsWith('r/')` — rejects any non-subreddit strings Claude might sneak in
+- Returns at most 5 results via `.slice(0, 5)` to stay within spec
