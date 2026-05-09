@@ -44,13 +44,27 @@ async function scrapeSubreddit(page, subredditName) {
   // Human-like pause before scraping
   await afterPageLoad();
 
-  // Scroll 3 times to load more posts
+  // Scroll 3 times to load more posts; skip on navigation mid-scroll
+  const preScrollUrl = page.url();
   for (let i = 0; i < 3; i++) {
-    await page.evaluate(() => window.scrollBy(0, 1500));
+    try {
+      await page.evaluate(() => window.scrollBy(0, 1500));
+    } catch {
+      break;
+    }
     await scrollPause();
+    if (page.url() !== preScrollUrl) break;
   }
 
-  const posts = await page.evaluate((subreddit) => {
+  // If page navigated away during scroll, bail out
+  if (page.url() !== preScrollUrl) {
+    console.warn(`[scraper] Page navigated away during scroll on r/${sub} — skipping`);
+    return [];
+  }
+
+  let posts;
+  try {
+    posts = await page.evaluate((subreddit) => {
     const results = [];
 
     // Try new Reddit shreddit-post elements first
@@ -138,6 +152,13 @@ async function scrapeSubreddit(page, subredditName) {
 
     return results;
   }, sub);
+  } catch (err) {
+    if (err.message.includes('Execution context was destroyed')) {
+      console.warn(`[scraper] Context destroyed during evaluate on r/${sub} — page navigated`);
+      return [];
+    }
+    throw err;
+  }
 
   if (posts.length === 0) {
     console.warn(`[scraper] No posts scraped from r/${sub}`);
@@ -280,12 +301,25 @@ async function scrapeRedditSearch(page, query) {
 
   await afterPageLoad();
 
+  const preScrollSearchUrl = page.url();
   for (let i = 0; i < 3; i++) {
-    await page.evaluate(() => window.scrollBy(0, 1500));
+    try {
+      await page.evaluate(() => window.scrollBy(0, 1500));
+    } catch {
+      break;
+    }
     await scrollPause();
+    if (page.url() !== preScrollSearchUrl) break;
   }
 
-  const posts = await page.evaluate(() => {
+  if (page.url() !== preScrollSearchUrl) {
+    console.warn(`[scraper] Page navigated away during scroll on search "${query}" — skipping`);
+    return [];
+  }
+
+  let posts;
+  try {
+    posts = await page.evaluate(() => {
     const results = [];
 
     const shredditPosts = document.querySelectorAll('shreddit-post');
@@ -378,6 +412,13 @@ async function scrapeRedditSearch(page, query) {
 
     return results;
   });
+  } catch (err) {
+    if (err.message.includes('Execution context was destroyed')) {
+      console.warn(`[scraper] Context destroyed during evaluate on search "${query}" — page navigated`);
+      return [];
+    }
+    throw err;
+  }
 
   if (posts.length === 0) {
     console.warn(`[scraper] No posts scraped for search "${query}"`);
