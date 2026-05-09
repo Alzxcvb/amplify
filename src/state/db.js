@@ -52,6 +52,29 @@ function initTables(database) {
       comment_preview TEXT NOT NULL,
       detected_at     INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
     );
+
+    CREATE TABLE IF NOT EXISTS campaign_settings (
+      campaign_id   TEXT NOT NULL,
+      setting_key   TEXT NOT NULL,
+      setting_value TEXT NOT NULL,
+      is_auto_tuned INTEGER NOT NULL DEFAULT 0,
+      tuned_at      INTEGER,
+      tune_reason   TEXT,
+      PRIMARY KEY (campaign_id, setting_key)
+    );
+
+    CREATE TABLE IF NOT EXISTS tuning_history (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id      TEXT NOT NULL,
+      setting_key      TEXT NOT NULL,
+      old_value        TEXT,
+      new_value        TEXT NOT NULL,
+      match_ratio      REAL,
+      comments_checked INTEGER,
+      matches_found    INTEGER,
+      reason           TEXT,
+      changed_at       INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+    );
   `);
 }
 
@@ -121,4 +144,60 @@ function getInjectionAttempts(limit = 50) {
     .all(limit);
 }
 
-module.exports = { getDb, hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies, getActivityLog, getStats, logInjection, getInjectionAttempts };
+function getCampaignSetting(campaignId, key, defaultVal) {
+  const row = getDb()
+    .prepare('SELECT setting_value FROM campaign_settings WHERE campaign_id = ? AND setting_key = ?')
+    .get(campaignId, key);
+  return row ? row.setting_value : defaultVal;
+}
+
+function setCampaignSetting(campaignId, key, value, { isAutoTuned = false, reason = null } = {}) {
+  const database = getDb();
+  const existing = database
+    .prepare('SELECT setting_value FROM campaign_settings WHERE campaign_id = ? AND setting_key = ?')
+    .get(campaignId, key);
+  const now = Math.floor(Date.now() / 1000);
+  database
+    .prepare(`INSERT INTO campaign_settings (campaign_id, setting_key, setting_value, is_auto_tuned, tuned_at, tune_reason)
+              VALUES (?, ?, ?, ?, ?, ?)
+              ON CONFLICT(campaign_id, setting_key) DO UPDATE SET
+                setting_value = excluded.setting_value,
+                is_auto_tuned = excluded.is_auto_tuned,
+                tuned_at = excluded.tuned_at,
+                tune_reason = excluded.tune_reason`)
+    .run(campaignId, key, String(value), isAutoTuned ? 1 : 0, now, reason);
+  database
+    .prepare(`INSERT INTO tuning_history (campaign_id, setting_key, old_value, new_value, reason, changed_at)
+              VALUES (?, ?, ?, ?, ?, ?)`)
+    .run(campaignId, key, existing ? existing.setting_value : null, String(value), reason, now);
+}
+
+function resetCampaignSetting(campaignId, key) {
+  getDb()
+    .prepare('DELETE FROM campaign_settings WHERE campaign_id = ? AND setting_key = ?')
+    .run(campaignId, key);
+}
+
+function getAllSettings(campaignId) {
+  const rows = getDb()
+    .prepare('SELECT * FROM campaign_settings WHERE campaign_id = ?')
+    .all(campaignId);
+  const result = {};
+  for (const row of rows) result[row.setting_key] = row;
+  return result;
+}
+
+function getTuningHistory(campaignId, limit = 20) {
+  return getDb()
+    .prepare('SELECT * FROM tuning_history WHERE campaign_id = ? ORDER BY changed_at DESC, id DESC LIMIT ?')
+    .all(campaignId, limit);
+}
+
+module.exports = {
+  getDb,
+  hasSeenPost, markPostSeen,
+  logReply, logSkipped, getRecentReplies,
+  getActivityLog, getStats,
+  logInjection, getInjectionAttempts,
+  getCampaignSetting, setCampaignSetting, resetCampaignSetting, getAllSettings, getTuningHistory,
+};

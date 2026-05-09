@@ -168,3 +168,12 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `db.js` has no `initDb` export — call `getDb()` to trigger initialization (lazy singleton)
 - `test/dry-run-test.js` catches the CDP connection error (ECONNREFUSED) and exits 0 with a warning — Chrome not running is not a test failure
 - Run: `node test/dry-run-test.js` — must exit 0 whether or not Chrome is running
+
+## Campaign Settings DB Notes
+
+- `campaign_settings` PK is `(campaign_id, setting_key)` — `setCampaignSetting` uses `INSERT ... ON CONFLICT DO UPDATE` for upsert
+- `setCampaignSetting` reads the existing value BEFORE upserting, then records old→new in `tuning_history` — ensures correct old_value even on first write (null)
+- `getCampaignSetting` returns the `defaultVal` argument (not a string) when no row exists — callers control the type
+- `getTuningHistory` orders by `changed_at DESC, id DESC` — `id DESC` secondary sort avoids non-deterministic ordering when two entries land in the same second
+- Write verification tests with a unique campaign ID per run (e.g. `'t28-' + Date.now()`) to avoid stale DB state polluting assertions
+- All new functions are exported alongside existing exports in the `module.exports` block
