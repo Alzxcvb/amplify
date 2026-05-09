@@ -204,8 +204,12 @@ async function scrapePostComments(page, postUrl, limit = 25) {
   await afterPageLoad();
 
   // Bail if page navigated away while waiting
-  if (!page.url().includes('/comments/')) {
-    console.warn(`[scraper] Page navigated away from post — skipping`);
+  try {
+    if (!page.url().includes('/comments/')) {
+      console.warn(`[scraper] Page navigated away from post — skipping`);
+      return [];
+    }
+  } catch {
     return [];
   }
 
@@ -271,12 +275,9 @@ async function scrapePostComments(page, postUrl, limit = 25) {
 
     return results;
   }, limit);
-  } catch (err) {
-    if (err.message.includes('Execution context was destroyed')) {
-      console.warn(`[scraper] Context destroyed reading comments — page navigated`);
-      return [];
-    }
-    throw err;
+  } catch {
+    console.warn(`[scraper] Failed to evaluate comments on ${postUrl} — page may have navigated`);
+    return [];
   }
 
   return comments;
