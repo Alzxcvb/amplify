@@ -1,14 +1,25 @@
 const { chromium } = require('playwright');
 const path = require('path');
 const os = require('os');
+const fs = require('fs');
 
 const PROFILE_DIR = path.join(os.homedir(), '.amplify-browser-profile');
 
 async function connectBrowser() {
+  // Remove stale lock file left by a previously crashed Chrome instance
+  const lockFile = path.join(PROFILE_DIR, 'SingletonLock');
+  if (fs.existsSync(lockFile)) {
+    try { fs.unlinkSync(lockFile); } catch {}
+  }
+
   const context = await chromium.launchPersistentContext(PROFILE_DIR, {
     headless: false,
     channel: 'chrome',
-    args: ['--no-first-run', '--no-default-browser-check'],
+    args: [
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-blink-features=AutomationControlled',
+    ],
   });
   return context;
 }
