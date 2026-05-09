@@ -184,7 +184,7 @@ function getCampaignSetting(campaignId, key, defaultVal) {
   return row ? row.setting_value : defaultVal;
 }
 
-function setCampaignSetting(campaignId, key, value, { isAutoTuned = false, reason = null } = {}) {
+function setCampaignSetting(campaignId, key, value, { isAutoTuned = false, reason = null, matchRatio = null, commentsChecked = null, matchesFound = null } = {}) {
   const database = getDb();
   const existing = database
     .prepare('SELECT setting_value FROM campaign_settings WHERE campaign_id = ? AND setting_key = ?')
@@ -200,9 +200,9 @@ function setCampaignSetting(campaignId, key, value, { isAutoTuned = false, reaso
                 tune_reason = excluded.tune_reason`)
     .run(campaignId, key, String(value), isAutoTuned ? 1 : 0, now, reason);
   database
-    .prepare(`INSERT INTO tuning_history (campaign_id, setting_key, old_value, new_value, reason, changed_at)
-              VALUES (?, ?, ?, ?, ?, ?)`)
-    .run(campaignId, key, existing ? existing.setting_value : null, String(value), reason, now);
+    .prepare(`INSERT INTO tuning_history (campaign_id, setting_key, old_value, new_value, match_ratio, comments_checked, matches_found, reason, changed_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(campaignId, key, existing ? existing.setting_value : null, String(value), matchRatio, commentsChecked, matchesFound, reason, now);
 }
 
 function resetCampaignSetting(campaignId, key) {

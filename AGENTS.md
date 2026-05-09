@@ -236,3 +236,14 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `getRecentRunStats(campaignId, limit=5)` orders by `run_at DESC, id DESC` — secondary sort handles same-second writes
 - `src/tuning/run-stats.js` exports `recordRunStats(campaignId, campaignStats, resolvedSettings)` — computes `match_ratio = matchesFound / Math.max(commentsChecked, 1)` and calls `saveRunStats`
 - `recordRunStats` is called in `bot.js` after `closePage` (campaign `try/finally`) but before the next campaign iteration — stats are final at that point, but outside the `finally` so exceptions during a run don't write partial stats
+
+## Auto-Tuner Notes (TASK-36)
+
+- `src/tuning/auto-tuner.js` exports `tuneCampaign(campaignId, currentSettings, recentStats)` and `computeScore(matchRatio, commentsChecked)`
+- Score formula: `match_ratio * Math.log(commentsChecked + 1)` — rewards both hit rate AND volume
+- ROTATION = `['post_age_days', 'confidence_threshold', 'max_comments_per_post', 'subreddit_set']` — one param per run
+- `pending_experiment` key in campaign_settings stores JSON `{parameter, candidateValue, baselineValue, baselineScore, proposedAt}` for the in-flight A/B test
+- Evaluation guard: `lastRun.run_at > exp.proposedAt` — since `recordRunStats` fires before `tuneCampaign`, on the same run `run_at <= proposedAt` → no premature evaluation
+- `subreddit_set` is one-way: flags the lowest-ratio subreddit (keeps at least 1 active); no revert step since unflagging isn't supported — the existing discover machinery finds replacements on the next run
+- `setCampaignSetting` was extended to accept `matchRatio`, `commentsChecked`, `matchesFound` options — these populate the dedicated columns in `tuning_history` (were previously always NULL)
+- TASK-37 (bot wiring) must: (1) read `pending_experiment` before each campaign run and apply `candidateValue` to `resolvedSettings` in-memory, (2) call `getRecentRunStats` + `tuneCampaign` after `recordRunStats`, (3) log returned decisions with `chalk.yellow`
