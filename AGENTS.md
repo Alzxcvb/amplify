@@ -315,3 +315,13 @@ node src/index.js --campaign=arrival-pass --dry-run
 - PUT merges incoming body over existing fields but preserves `id` immutably: `{ ...existing, ...body, id: existing.id }`
 - `readCampaign(id)` helper returns `null` for missing or unparseable files — used by GET, PUT, DELETE to avoid repetition
 - `node --check` passes on both files (pure ESM, no JSX)
+
+## New Campaign Wizard Notes (TASK-45)
+
+- `dashboard/app/campaigns/new/page.js` is a `'use client'` component — uses `useState` for step, form fields, and submit state
+- `slugify(str)` auto-fills Campaign ID from Product Name; user can override it manually
+- `canAdvance()` gates the Next button: step 1 requires id, product, url, pitch, and at least one pain point; step 2 requires at least one subreddit
+- `buildPayload()` assembles the campaign JSON on every render — step 3 shows a live JSON preview via `JSON.stringify(payload, null, 2)`
+- `audience` is optional — included in payload only when non-empty (not a required field in create API)
+- On success, `router.push('/campaigns')` redirects; on error, the message is shown inline on step 3
+- `node --check` always fails on this file (JSX) — expected per Dashboard Page Notes above
