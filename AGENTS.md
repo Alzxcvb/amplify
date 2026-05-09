@@ -350,3 +350,10 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `?campaign=id` param: merges `getSubredditStats` rows with unscanned campaign + discovered subreddits (scans=0 rows) so all subreddits appear even before first scan
 - Without `?campaign` param: returns all subreddits across all campaigns with `campaign_id` field — TASK-47 uses this for the cross-campaign subreddits table
 - Path depth from `dashboard/app/api/subreddits/route.js` to `amplify/src/`: `../../../../src/` (4 levels)
+
+## Injection Attempts Page Notes (TASK-48)
+
+- `dashboard/app/api/injections/route.js` calls `getInjectionAttempts(100)` — same 4-level import path `../../../../src/state/db`
+- `dashboard/app/injections/page.js` is a `'use client'` component — no pagination (100 records max is manageable on one page)
+- Comment preview is sanitized via manual `<`/`>` escaping then injected via `dangerouslySetInnerHTML` — prevents XSS from attacker-controlled comment text
+- `node --check` passes on route.js (pure ESM); page.js fails on JSX as expected per Dashboard Page Notes
