@@ -203,7 +203,15 @@ async function scrapePostComments(page, postUrl, limit = 25) {
 
   await afterPageLoad();
 
-  const comments = await page.evaluate((LIMIT) => {
+  // Bail if page navigated away while waiting
+  if (!page.url().includes('/comments/')) {
+    console.warn(`[scraper] Page navigated away from post — skipping`);
+    return [];
+  }
+
+  let comments;
+  try {
+    comments = await page.evaluate((LIMIT) => {
     const results = [];
     const SKIP_AUTHORS = new Set(['[deleted]', '[removed]', 'automoderator']);
 
@@ -263,6 +271,13 @@ async function scrapePostComments(page, postUrl, limit = 25) {
 
     return results;
   }, limit);
+  } catch (err) {
+    if (err.message.includes('Execution context was destroyed')) {
+      console.warn(`[scraper] Context destroyed reading comments — page navigated`);
+      return [];
+    }
+    throw err;
+  }
 
   return comments;
 }
