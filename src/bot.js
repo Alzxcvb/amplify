@@ -76,6 +76,12 @@ async function processNewPosts(browser, page, posts, campaign, stats, dryRun, re
       try {
         result = await classifyAndReply(browser, postData, campaign, resolvedSettings);
       } catch (err) {
+        if (err.message && err.message.includes('AI_NOT_LOGGED_IN')) {
+          console.error(chalk.red('\n[bot] ⚠️  Not logged into Claude.ai. Run: node setup-browser.js'));
+          console.error(chalk.red('[bot] Log into claude.ai in the browser that opens, then press Enter.\n'));
+          await browser.close();
+          process.exit(1);
+        }
         console.warn(chalk.yellow(`[bot] classifyAndReply error: ${err.message}`));
         continue;
       }

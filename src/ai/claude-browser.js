@@ -55,7 +55,13 @@ async function askClaude(browser, promptText, aiUrl = DEFAULT_AI_URL) {
 
   const inputSelector = await findInput(page);
   if (!inputSelector) {
+    // Check if we're on a login page
+    const url = page.url();
+    const isLoginPage = url.includes('/login') || url.includes('/sign') || url.includes('auth');
     await page.close();
+    if (isLoginPage) {
+      throw new Error('AI_NOT_LOGGED_IN — run: node setup-browser.js, log into claude.ai, press Enter');
+    }
     throw new Error('AI_INPUT_NOT_FOUND');
   }
 

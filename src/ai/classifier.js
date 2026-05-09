@@ -72,7 +72,11 @@ async function classifyAndReply(browser, post, campaign, resolvedSettings = {}) 
     responseText = aiUrl
       ? await askClaude(browser, prompt, aiUrl)
       : await askClaude(browser, prompt);
-  } catch {
+  } catch (err) {
+    const msg = err.message || '';
+    if (msg.includes('AI_NOT_LOGGED_IN')) {
+      throw new Error(msg); // Propagate — bot should surface this loudly
+    }
     return { match: false, confidence: 0, reply: null, reason: 'ai_error' };
   }
 
