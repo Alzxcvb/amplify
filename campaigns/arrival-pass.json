@@ -1,8 +1,8 @@
 {
   "id": "arrival-pass",
-  "product": "Arrival Pass",
-  "url": "https://arrivalpass.app",
-  "pitch": "iOS app that autofills Malaysia's Digital Arrival Card (MDAC) in one tap. Saves your passport info, travel details, and address so you never fill the form manually again.",
+  "product": "MDAC Better",
+  "url": "https://mdac-better.vercel.app",
+  "pitch": "Free web app that replaces Malaysia's clunky MDAC form with a clean, fast one-page experience. Fill it in 30 seconds, works on any device, no download needed.",
   "pain_points": [
     "malaysia digital arrival card",
     "mdac",
@@ -18,7 +18,6 @@
     "mdac not working",
     "arrival card app"
   ],
-  "ai_url": "https://claude.ai/new",
   "active": true,
   "platforms": {
     "reddit": [
