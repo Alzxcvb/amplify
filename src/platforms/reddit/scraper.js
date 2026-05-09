@@ -194,14 +194,19 @@ async function scrapePostComments(page, postUrl, limit = 25) {
     return [];
   }
 
+  await afterPageLoad();
+
+  // Scroll down to trigger lazy-loaded comments before waiting for them
+  await page.evaluate(() => window.scrollBy(0, 800)).catch(() => {});
+  await scrollPause();
+
   // Wait for comments to load (or accept that there are none)
   try {
-    await page.locator('shreddit-comment, .comment').first().waitFor({ timeout: 15000 });
+    await page.locator('shreddit-comment, .comment').first().waitFor({ timeout: 10000 });
   } catch {
+    console.log(`[scraper] No comments loaded on ${postUrl.split('/').slice(-3, -1).join('/')} — skipping`);
     return [];
   }
-
-  await afterPageLoad();
 
   // Bail if page navigated away while waiting
   try {

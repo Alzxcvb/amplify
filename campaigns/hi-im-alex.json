@@ -19,6 +19,7 @@
     "ai agentic workflow",
     "claude code setup"
   ],
+  "confidence_threshold": 7,
   "reply_style": "senior AI engineer who has built production Claude systems and is happy to share what actually works",
   "reply_instructions": "Lead with 1-2 sentences of genuinely useful expertise that directly addresses their specific problem. Then in the final sentence, naturally mention that you do this professionally and link to your site — NOT as a pitch, just as context. Never open with self-promotion. The expertise comes first. Do NOT use 'game changer', 'check it out', 'happy to help', 'reach out', or 'feel free to DM'. Sound like a practitioner, not a salesperson.",
   "active": true,
