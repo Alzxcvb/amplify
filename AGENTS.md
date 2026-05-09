@@ -141,6 +141,13 @@ node src/index.js --campaign=arrival-pass --dry-run
 - Pagination controls only render when `totalPages > 1`
 - `node --check` always fails on this file (JSX) — this is expected per Dashboard Page Notes above
 
+## Injection Guard Notes
+
+- `detectInjection(text)` returns `{isInjection: bool, pattern: string|null}` — checks 13 regex patterns + length > 5000 + control chars
+- Pattern names are snake_case strings (e.g. `'ignore_instructions'`, `'text_too_long'`, `'control_chars'`) — useful for logging/display
+- The `\bDAN\b` pattern uses word boundaries — avoids false positives on words like "Denmark"
+- Control char regex `/[\x00-\x08\x0b\x0e-\x1f]/` excludes `\x09` (tab) and `\x0a` (LF) which are normal in multi-line posts
+
 ## Integration Dry-Run Test Notes
 
 - `db.js` has no `initDb` export — call `getDb()` to trigger initialization (lazy singleton)
