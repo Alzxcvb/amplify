@@ -1,3 +1,6 @@
+'use strict';
+
+const { askGroq } = require('./groq-client');
 const { askClaude } = require('./claude-browser');
 const { detectInjection } = require('./injection-guard');
 
@@ -49,6 +52,19 @@ function parseResponse(text) {
   return JSON.parse(stripped);
 }
 
+async function callAI(browser, prompt, campaign) {
+  const groqKey = process.env.GROQ_API_KEY;
+
+  if (groqKey) {
+    return askGroq(prompt, groqKey);
+  }
+
+  // Browser fallback (blocked by Cloudflare on claude.ai/chatgpt — set GROQ_API_KEY instead)
+  const aiUrl = campaign.ai_url || undefined;
+  const result = await (aiUrl ? askClaude(browser, prompt, aiUrl) : askClaude(browser, prompt));
+  return result;
+}
+
 async function classifyAndReply(browser, post, campaign, resolvedSettings = {}) {
   const commentBody = post.commentBody || '';
   const postContext = `${post.title || ''} ${post.body || ''}`.trim();
@@ -64,20 +80,17 @@ async function classifyAndReply(browser, post, campaign, resolvedSettings = {}) 
   }
 
   const replyStyle = pickReplyStyle(resolvedSettings);
-  const aiUrl = campaign.ai_url || undefined;
   const prompt = buildPrompt(post, campaign, replyStyle);
 
   let responseText;
   try {
-    responseText = aiUrl
-      ? await askClaude(browser, prompt, aiUrl)
-      : await askClaude(browser, prompt);
+    responseText = await callAI(browser, prompt, campaign);
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('AI_NOT_LOGGED_IN')) {
-      throw new Error(msg); // Propagate — bot should surface this loudly
+      throw new Error(msg);
     }
-    return { match: false, confidence: 0, reply: null, reason: 'ai_error' };
+    return { match: false, confidence: 0, reply: null, reason: `ai_error: ${msg.slice(0, 80)}` };
   }
 
   try {
