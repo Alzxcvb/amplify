@@ -357,3 +357,11 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `dashboard/app/injections/page.js` is a `'use client'` component — no pagination (100 records max is manageable on one page)
 - Comment preview is sanitized via manual `<`/`>` escaping then injected via `dangerouslySetInnerHTML` — prevents XSS from attacker-controlled comment text
 - `node --check` passes on route.js (pure ESM); page.js fails on JSX as expected per Dashboard Page Notes
+
+## Nav Sidebar Notes (TASK-49)
+
+- Sidebar is extracted to `dashboard/app/components/Sidebar.js` as a `'use client'` component — layout.js stays a server component and imports it
+- `usePathname()` from `next/navigation` drives active link detection — `href === '/'` checks exact match; all others use `pathname.startsWith(href)`
+- Layout uses `flex min-h-screen` on body: sidebar is `w-56 shrink-0`, content area is `flex-1 overflow-auto`
+- "New Campaign" button lives in a bottom section of the sidebar, separated by a border-t from the nav links
+- `node --check` fails on Sidebar.js (JSX) — expected per Dashboard Page Notes; verified structurally correct
