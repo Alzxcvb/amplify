@@ -297,6 +297,15 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `tuningChanges` decision types: `'applied'`, `'reverted'`, `'proposed'`, `'subreddit_flagged'` — each has different fields; `tuningLabel()` formats them for display
 - `node --check` passes on route.js (pure ESM, no JSX); page.js fails on JSX as expected (per Dashboard Page Notes)
 
+## Campaign Settings API Notes (TASK-44)
+
+- `dashboard/app/api/campaigns/[id]/settings/route.js` is 6 levels deep → `../../../../../../src/` reaches `amplify/src/`
+- `dashboard/app/api/campaigns/[id]/tuning/route.js` is same depth — same relative imports
+- GET /settings returns `{ defaults, settings, tuningHistoryByKey }` — `settings` is from `getAllSettings(id)`, `tuningHistoryByKey` groups `getTuningHistory(id, 50)` by `setting_key`
+- PUT /settings validates `key` against DEFAULTS — rejects unknown keys with 400
+- DELETE /settings reads body JSON for `{ key }` — Next.js App Router does not reject body on DELETE
+- `node --check` passes on both files (pure ESM, no JSX)
+
 ## Campaign CRUD API Notes (TASK-43)
 
 - `dashboard/app/api/campaigns/create/route.js` is 5 levels deep → `../../../../../campaigns/` reaches `amplify/campaigns/`
