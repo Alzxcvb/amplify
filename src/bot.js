@@ -6,7 +6,8 @@ const { loadCampaigns } = require('./campaigns/loader');
 const { scrapeSubreddit, scrapePostComments, scrapeRedditSearch } = require('./platforms/reddit/scraper');
 const { postReply } = require('./platforms/reddit/poster');
 const { classifyAndReply } = require('./ai/classifier');
-const { hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats } = require('./state/db');
+const { hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, addDiscoveredSubreddit, getDiscoveredSubreddits } = require('./state/db');
+const { discoverSubreddits } = require('./discovery/subreddit-finder');
 const { SCROLL_PAUSE_MS, resolveSettings } = require('./config');
 
 function sleep(ms) {
@@ -125,21 +126,25 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
 
   try {
     for (const campaign of campaigns) {
-      stats[campaign.id] = { postsScanned: 0, commentsChecked: 0, matchesFound: 0, repliesPosted: 0, skipped: 0, flaggedSubreddits: [] };
+      stats[campaign.id] = { postsScanned: 0, commentsChecked: 0, matchesFound: 0, repliesPosted: 0, skipped: 0, flaggedSubreddits: [], newSubredditsDiscovered: [] };
 
       const resolvedSettings = resolveSettings(campaign.id, campaign);
       console.log(chalk.dim(`[bot] ${campaign.id} settings: confidence_threshold=${resolvedSettings.confidence_threshold} max_comments=${resolvedSettings.max_comments_per_post} max_replies_per_hour=${resolvedSettings.max_replies_per_hour} min_gap=${resolvedSettings.min_seconds_between_replies}s post_age_days=${resolvedSettings.post_age_days} reply_style="${resolvedSettings.reply_style}"`));
 
-      const subreddits = campaign.platforms?.reddit || [];
-      if (subreddits.length === 0) {
+      const campaignSubreddits = campaign.platforms?.reddit || [];
+      const discoveredSubs = getDiscoveredSubreddits(campaign.id);
+      const allSubreddits = [...new Set([...campaignSubreddits, ...discoveredSubs])];
+
+      if (allSubreddits.length === 0) {
         console.warn(chalk.yellow(`[bot] Campaign ${campaign.id} has no reddit subreddits, skipping`));
         continue;
       }
 
       const page = await openNewTab(browser, null);
+      const newlyFlagged = [];
 
       try {
-        for (const subreddit of subreddits) {
+        for (const subreddit of allSubreddits) {
           if (isSubredditFlagged(campaign.id, subreddit)) {
             console.log(chalk.red(`[bot] Skipping flagged subreddit: ${subreddit}`));
             stats[campaign.id].flaggedSubreddits.push(subreddit);
@@ -178,6 +183,24 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
             flagSubreddit(campaign.id, subreddit, 'no_matches_after_3_scans');
             console.log(chalk.red(`[bot] Auto-flagged ${subreddit}: no matches after ${subRow.scans} scans`));
             stats[campaign.id].flaggedSubreddits.push(subreddit);
+            newlyFlagged.push(subreddit);
+          }
+        }
+
+        if (newlyFlagged.length > 0) {
+          console.log(chalk.cyan(`[bot] Discovering subreddits to replace ${newlyFlagged.length} newly flagged...`));
+          let discovered = [];
+          try {
+            discovered = await discoverSubreddits(browser, campaign, newlyFlagged);
+          } catch (err) {
+            console.warn(chalk.yellow(`[bot] discoverSubreddits error: ${err.message}`));
+          }
+          for (const sub of discovered) {
+            addDiscoveredSubreddit(campaign.id, sub, 'claude');
+          }
+          if (discovered.length > 0) {
+            console.log(chalk.cyan(`[bot] Queued ${discovered.length} new subreddits for next run: ${discovered.join(', ')}`));
+            stats[campaign.id].newSubredditsDiscovered = discovered;
           }
         }
 
@@ -220,6 +243,9 @@ function printSummary(stats, dryRun) {
     console.log(row.map((v, i) => String(v).padEnd(COL[i])).join(''));
     if (s.flaggedSubreddits && s.flaggedSubreddits.length > 0) {
       console.log(chalk.red(`  [FLAGGED] ${s.flaggedSubreddits.join(', ')}`));
+    }
+    if (s.newSubredditsDiscovered && s.newSubredditsDiscovered.length > 0) {
+      console.log(chalk.cyan(`  [DISCOVERED] ${s.newSubredditsDiscovered.join(', ')}`));
     }
   }
 

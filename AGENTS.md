@@ -217,3 +217,14 @@ node src/index.js --campaign=arrival-pass --dry-run
 - Strips markdown code fences from response before JSON.parse; falls back to regex `\[[\s\S]*?\]` extraction if top-level parse fails
 - Validates each entry with `s.startsWith('r/')` — rejects any non-subreddit strings Claude might sneak in
 - Returns at most 5 results via `.slice(0, 5)` to stay within spec
+
+## Subreddit Discovery Wiring Notes (TASK-34)
+
+- `discovered_subreddits(campaign_id, subreddit, discovered_at, source)` table uses `INSERT OR IGNORE` — re-discovering the same subreddit is a no-op
+- `getDiscoveredSubreddits(campaignId)` returns a plain array of subreddit strings (not row objects)
+- `addDiscoveredSubreddit(campaignId, subreddit, source='claude')` — source defaults to 'claude'; future sources could be 'manual' etc.
+- Bot merges campaign.platforms.reddit + getDiscoveredSubreddits() via `[...new Set([...campaignSubreddits, ...discoveredSubs])]` — deduplication is automatic
+- Track newly-flagged subreddits in a local `newlyFlagged` array (separate from `stats[id].flaggedSubreddits` which also includes pre-existing flags)
+- Discovery is triggered after the subreddit loop, before keyword scan — keyword scans don't flag anything so triggering after them would delay saves
+- `discoverSubreddits` call site is wrapped in try/catch (the function itself suppresses askClaude errors, but outer errors e.g. bad campaign shape would otherwise kill the run)
+- Discovered subreddits are saved immediately but scanned on the NEXT run (they're merged into `allSubreddits` at loop start, so a subreddit discovered this run won't be scanned until the bot restarts)

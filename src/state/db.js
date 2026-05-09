@@ -88,6 +88,14 @@ function initTables(database) {
       flag_reason       TEXT,
       PRIMARY KEY (campaign_id, subreddit)
     );
+
+    CREATE TABLE IF NOT EXISTS discovered_subreddits (
+      campaign_id   TEXT NOT NULL,
+      subreddit     TEXT NOT NULL,
+      discovered_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+      source        TEXT NOT NULL DEFAULT 'claude',
+      PRIMARY KEY (campaign_id, subreddit)
+    );
   `);
 }
 
@@ -251,6 +259,20 @@ function getSubredditMatchRatio(campaignId, subreddit) {
   return row.matches_found / row.comments_checked;
 }
 
+function addDiscoveredSubreddit(campaignId, subreddit, source = 'claude') {
+  const now = Math.floor(Date.now() / 1000);
+  getDb()
+    .prepare('INSERT OR IGNORE INTO discovered_subreddits (campaign_id, subreddit, discovered_at, source) VALUES (?, ?, ?, ?)')
+    .run(campaignId, subreddit, now, source);
+}
+
+function getDiscoveredSubreddits(campaignId) {
+  return getDb()
+    .prepare('SELECT subreddit FROM discovered_subreddits WHERE campaign_id = ? ORDER BY discovered_at ASC')
+    .all(campaignId)
+    .map(r => r.subreddit);
+}
+
 module.exports = {
   getDb,
   hasSeenPost, markPostSeen,
@@ -259,4 +281,5 @@ module.exports = {
   logInjection, getInjectionAttempts,
   getCampaignSetting, setCampaignSetting, resetCampaignSetting, getAllSettings, getTuningHistory,
   updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, getSubredditMatchRatio,
+  addDiscoveredSubreddit, getDiscoveredSubreddits,
 };
