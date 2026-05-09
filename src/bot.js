@@ -6,10 +6,11 @@ const { loadCampaigns } = require('./campaigns/loader');
 const { scrapeSubreddit, scrapePostComments, scrapeRedditSearch } = require('./platforms/reddit/scraper');
 const { postReply } = require('./platforms/reddit/poster');
 const { classifyAndReply } = require('./ai/classifier');
-const { hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, addDiscoveredSubreddit, getDiscoveredSubreddits } = require('./state/db');
+const { hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, addDiscoveredSubreddit, getDiscoveredSubreddits, getCampaignSetting, getRecentRunStats } = require('./state/db');
 const { discoverSubreddits } = require('./discovery/subreddit-finder');
 const { SCROLL_PAUSE_MS, resolveSettings } = require('./config');
 const { recordRunStats } = require('./tuning/run-stats');
+const { tuneCampaign } = require('./tuning/auto-tuner');
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -130,6 +131,19 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
       stats[campaign.id] = { postsScanned: 0, commentsChecked: 0, matchesFound: 0, repliesPosted: 0, skipped: 0, flaggedSubreddits: [], newSubredditsDiscovered: [] };
 
       const resolvedSettings = resolveSettings(campaign.id, campaign);
+
+      // Apply any pending A/B experiment in-memory before this run
+      const pendingExpRaw = getCampaignSetting(campaign.id, 'pending_experiment', null);
+      if (pendingExpRaw && pendingExpRaw !== 'null') {
+        try {
+          const exp = JSON.parse(pendingExpRaw);
+          if (exp && exp.parameter && exp.parameter !== 'subreddit_set') {
+            resolvedSettings[exp.parameter] = exp.candidateValue;
+            console.log(chalk.yellow(`[bot] Applying experiment: ${exp.parameter} = ${exp.candidateValue} (baseline: ${exp.baselineValue})`));
+          }
+        } catch (_) { /* malformed experiment JSON — ignore */ }
+      }
+
       console.log(chalk.dim(`[bot] ${campaign.id} settings: confidence_threshold=${resolvedSettings.confidence_threshold} max_comments=${resolvedSettings.max_comments_per_post} max_replies_per_hour=${resolvedSettings.max_replies_per_hour} min_gap=${resolvedSettings.min_seconds_between_replies}s post_age_days=${resolvedSettings.post_age_days} reply_style="${resolvedSettings.reply_style}"`));
 
       const campaignSubreddits = campaign.platforms?.reddit || [];
@@ -228,6 +242,24 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
       }
 
       recordRunStats(campaign.id, stats[campaign.id], resolvedSettings);
+
+      const recentStats = getRecentRunStats(campaign.id, 3);
+      const decisions = tuneCampaign(campaign.id, resolvedSettings, recentStats);
+      for (const d of decisions) {
+        if (d.type === 'applied') {
+          console.log(chalk.yellow(`[bot] Auto-tuned ${d.parameter}: ${d.oldValue} → ${d.newValue} (ratio: ${(d.ratio * 100).toFixed(1)}%, n=${d.commentsChecked})`));
+        } else if (d.type === 'reverted') {
+          console.log(chalk.yellow(`[bot] Auto-tuner reverted ${d.parameter}: ${d.oldValue} → ${d.newValue} (ratio: ${(d.ratio * 100).toFixed(1)}%, n=${d.commentsChecked})`));
+        } else if (d.type === 'subreddit_flagged') {
+          console.log(chalk.yellow(`[bot] Auto-tuner flagged subreddit: ${d.subreddit} (ratio: ${(d.ratio * 100).toFixed(1)}%, n=${d.commentsChecked})`));
+        } else if (d.type === 'proposed') {
+          if (d.parameter === 'subreddit_set') {
+            console.log(chalk.yellow(`[bot] Auto-tuner proposed: ${d.action}`));
+          } else {
+            console.log(chalk.yellow(`[bot] Auto-tuner proposed: ${d.parameter} = ${d.candidateValue} (current: ${d.currentValue})`));
+          }
+        }
+      }
     }
   } finally {
     await browser.close();

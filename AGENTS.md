@@ -247,3 +247,11 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `subreddit_set` is one-way: flags the lowest-ratio subreddit (keeps at least 1 active); no revert step since unflagging isn't supported — the existing discover machinery finds replacements on the next run
 - `setCampaignSetting` was extended to accept `matchRatio`, `commentsChecked`, `matchesFound` options — these populate the dedicated columns in `tuning_history` (were previously always NULL)
 - TASK-37 (bot wiring) must: (1) read `pending_experiment` before each campaign run and apply `candidateValue` to `resolvedSettings` in-memory, (2) call `getRecentRunStats` + `tuneCampaign` after `recordRunStats`, (3) log returned decisions with `chalk.yellow`
+
+## Auto-Tuner Bot Wiring Notes (TASK-37)
+
+- `getCampaignSetting` and `getRecentRunStats` are imported from `./state/db` (already exported from db.js)
+- `tuneCampaign` is imported from `./tuning/auto-tuner`
+- Pending experiment is applied in-memory BEFORE the run: read `pending_experiment` JSON, apply `candidateValue` to `resolvedSettings[exp.parameter]` — only for non-`subreddit_set` params (subreddit_set is handled by the flagging machinery, not in-memory settings)
+- Tuner is called AFTER `recordRunStats` — this guarantees the just-completed run stats are in DB before evaluation
+- Decision logging: `applied` and `reverted` print "ratio" as percentage (×100); `proposed` shows current→candidate values; `subreddit_flagged` shows flagged subreddit name
