@@ -296,3 +296,13 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `dashboard/app/runs/page.js` is a `'use client'` component — uses `useState` for expanded row index, toggling campaign breakdown on click
 - `tuningChanges` decision types: `'applied'`, `'reverted'`, `'proposed'`, `'subreddit_flagged'` — each has different fields; `tuningLabel()` formats them for display
 - `node --check` passes on route.js (pure ESM, no JSX); page.js fails on JSX as expected (per Dashboard Page Notes)
+
+## Campaign CRUD API Notes (TASK-43)
+
+- `dashboard/app/api/campaigns/create/route.js` is 5 levels deep → `../../../../../campaigns/` reaches `amplify/campaigns/`
+- `dashboard/app/api/campaigns/[id]/route.js` is same depth → same relative path `../../../../../`
+- Next.js 15 App Router: `params` is a Promise — always use `const { id } = await params;` in dynamic route handlers
+- DELETE handler deletes the JSON file first, then cleans up `campaign_settings` rows via `getDb().prepare(...).run(id)` — DB cleanup is best-effort (logged on error, does not fail the request)
+- PUT merges incoming body over existing fields but preserves `id` immutably: `{ ...existing, ...body, id: existing.id }`
+- `readCampaign(id)` helper returns `null` for missing or unparseable files — used by GET, PUT, DELETE to avoid repetition
+- `node --check` passes on both files (pure ESM, no JSX)
