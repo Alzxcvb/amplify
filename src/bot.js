@@ -1,5 +1,7 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
 const chalk = require('chalk');
 const { connectBrowser, openNewTab, closePage } = require('./browser/connector');
 const { loadCampaigns } = require('./campaigns/loader');
@@ -77,6 +79,7 @@ async function processNewPosts(browser, page, posts, campaign, stats, dryRun, re
       if (result.reason === 'injection_detected') {
         console.log(chalk.red(`[bot] Injection detected (${result.pattern}) in comment: ${comment.url}`));
         logInjection(campaign.id, post.url, comment.url, result.pattern, (comment.body || '').slice(0, 200));
+        stats[campaign.id].injectionAttempts++;
         stats[campaign.id].skipped++;
         continue;
       }
@@ -108,6 +111,7 @@ async function processNewPosts(browser, page, posts, campaign, stats, dryRun, re
 }
 
 async function runBot({ dryRun = false, campaignFilter = null } = {}) {
+  const startedAt = Date.now();
   console.log(chalk.cyan('[bot] Starting amplify' + (dryRun ? ' (DRY RUN)' : '')));
 
   let campaigns = loadCampaigns();
@@ -133,7 +137,7 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
 
   try {
     for (const campaign of campaigns) {
-      stats[campaign.id] = { postsScanned: 0, commentsChecked: 0, matchesFound: 0, repliesPosted: 0, skipped: 0, flaggedSubreddits: [], newSubredditsDiscovered: [] };
+      stats[campaign.id] = { postsScanned: 0, commentsChecked: 0, matchesFound: 0, repliesPosted: 0, skipped: 0, injectionAttempts: 0, subredditsScanned: 0, flaggedSubreddits: [], newSubredditsDiscovered: [], tuningChanges: [], resolvedSettings: null };
 
       const resolvedSettings = resolveSettings(campaign.id, campaign);
 
@@ -148,6 +152,8 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
           }
         } catch (_) { /* malformed experiment JSON — ignore */ }
       }
+
+      stats[campaign.id].resolvedSettings = resolvedSettings;
 
       console.log(chalk.dim(`[bot] ${campaign.id} settings: confidence_threshold=${resolvedSettings.confidence_threshold} max_comments=${resolvedSettings.max_comments_per_post} max_replies_per_hour=${resolvedSettings.max_replies_per_hour} min_gap=${resolvedSettings.min_seconds_between_replies}s post_age_days=${resolvedSettings.post_age_days} reply_style="${resolvedSettings.reply_style}"`));
 
@@ -171,6 +177,7 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
             continue;
           }
 
+          stats[campaign.id].subredditsScanned++;
           console.log(chalk.blue(`[bot] Scraping ${subreddit} for campaign: ${campaign.id}`));
 
           let posts;
@@ -264,6 +271,7 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
 
       const recentStats = getRecentRunStats(campaign.id, 3);
       const decisions = tuneCampaign(campaign.id, resolvedSettings, recentStats);
+      stats[campaign.id].tuningChanges = decisions;
       for (const d of decisions) {
         if (d.type === 'applied') {
           console.log(chalk.yellow(`[bot] Auto-tuned ${d.parameter}: ${d.oldValue} → ${d.newValue} (ratio: ${(d.ratio * 100).toFixed(1)}%, n=${d.commentsChecked})`));
@@ -285,6 +293,37 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
   }
 
   printSummary(stats, dryRun);
+
+  const finishedAt = Date.now();
+  const runsDir = path.join(__dirname, '..', 'data', 'runs');
+  fs.mkdirSync(runsDir, { recursive: true });
+  const report = {
+    startedAt,
+    finishedAt,
+    dryRun,
+    totalPostsScanned: Object.values(stats).reduce((a, s) => a + s.postsScanned, 0),
+    totalCommentsChecked: Object.values(stats).reduce((a, s) => a + s.commentsChecked, 0),
+    totalMatchesFound: Object.values(stats).reduce((a, s) => a + s.matchesFound, 0),
+    totalRepliesPosted: Object.values(stats).reduce((a, s) => a + s.repliesPosted, 0),
+    injectionAttempts: Object.values(stats).reduce((a, s) => a + s.injectionAttempts, 0),
+    newSubredditsDiscovered: Object.values(stats).reduce((a, s) => a + s.newSubredditsDiscovered.length, 0),
+    campaigns: Object.entries(stats).map(([id, s]) => ({
+      id,
+      subredditsScanned: s.subredditsScanned,
+      postsScanned: s.postsScanned,
+      commentsChecked: s.commentsChecked,
+      matchesFound: s.matchesFound,
+      repliesPosted: s.repliesPosted,
+      flaggedSubreddits: s.flaggedSubreddits,
+      discoveredSubreddits: s.newSubredditsDiscovered,
+      tuningChanges: s.tuningChanges,
+      matchRatio: s.commentsChecked > 0 ? s.matchesFound / s.commentsChecked : 0,
+      resolvedSettings: s.resolvedSettings,
+    })),
+  };
+  const reportPath = path.join(runsDir, `run-${startedAt}.json`);
+  fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+  console.log(chalk.gray(`[bot] Run report saved: ${reportPath}`));
 }
 
 function printSummary(stats, dryRun) {

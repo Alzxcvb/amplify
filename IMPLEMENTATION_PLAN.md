@@ -98,7 +98,7 @@
 
 ## Phase 17: Session Run Reports
 
-- [ ] TASK-41: JSON run report — at end of runBot() in src/bot.js, create data/runs/ dir (mkdir -p). Write JSON to data/runs/run-{Date.now()}.json: {startedAt, finishedAt, dryRun, totalPostsScanned, totalCommentsChecked, totalMatchesFound, totalRepliesPosted, injectionAttempts, newSubredditsDiscovered, campaigns: [{id, subredditsScanned, postsScanned, commentsChecked, matchesFound, repliesPosted, flaggedSubreddits, discoveredSubreddits, tuningChanges, matchRatio, resolvedSettings}]}. node --check verify.
+- [x] TASK-41: JSON run report — at end of runBot() in src/bot.js, create data/runs/ dir (mkdir -p). Write JSON to data/runs/run-{Date.now()}.json: {startedAt, finishedAt, dryRun, totalPostsScanned, totalCommentsChecked, totalMatchesFound, totalRepliesPosted, injectionAttempts, newSubredditsDiscovered, campaigns: [{id, subredditsScanned, postsScanned, commentsChecked, matchesFound, repliesPosted, flaggedSubreddits, discoveredSubreddits, tuningChanges, matchRatio, resolvedSettings}]}. node --check verify.
 - [ ] TASK-42: Runs API + page — create dashboard/app/api/runs/route.js: GET reads all JSON files from data/runs/, parses, returns array sorted desc by startedAt. Create dashboard/app/runs/page.js: table of runs (date, duration, posts scanned, comments, matches, replies, tuning changes count). Click row to expand campaign breakdown. Tailwind styled. node --check verify. Depends: TASK-41.
 
 ## Phase 18: Campaign UI — Full CRUD + Settings Editor

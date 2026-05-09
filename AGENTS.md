@@ -279,3 +279,12 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `hasRepliedToComment(commentUrl)` queries `sent_replies WHERE comment_url = ?` — distinct from `hasSeenPost` which deduplicates posts, not specific comments
 - Check placed in `processNewPosts` AFTER the rate limit check but BEFORE the injection check and `classifyAndReply` call — avoids wasteful AI calls for already-handled comments
 - Skipped duplicates log with `chalk.dim` and `continue` — they don't count toward `stats.skipped` since they are not a new processing decision
+
+## JSON Run Report Notes (TASK-41)
+
+- Report written to `data/runs/run-{startedAt}.json` using `fs.writeFileSync` — `data/` is gitignored so these files are runtime-only
+- `startedAt = Date.now()` captured at the very top of `runBot()` before any async work; `finishedAt` captured after `printSummary`
+- Per-campaign stats tracked: `subredditsScanned` (incremented per non-flagged subreddit), `injectionAttempts` (incremented in processNewPosts), `tuningChanges` (set from tuneCampaign decisions array), `resolvedSettings` (set AFTER pending-experiment block so mutations are captured)
+- Top-level `newSubredditsDiscovered` is a count (sum of per-campaign `newSubredditsDiscovered.length`); campaign-level `discoveredSubreddits` is the array
+- `fs.mkdirSync(runsDir, { recursive: true })` creates the dir on first run — no pre-existing dir needed
+- TASK-42 dashboard API reads these files at GET /api/runs — sorted desc by startedAt
