@@ -325,3 +325,19 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `audience` is optional — included in payload only when non-empty (not a required field in create API)
 - On success, `router.push('/campaigns')` redirects; on error, the message is shown inline on step 3
 - `node --check` always fails on this file (JSX) — expected per Dashboard Page Notes above
+
+## Campaign Detail Page Notes (TASK-46)
+
+- `dashboard/app/campaigns/[id]/page.js` uses `useParams()` to get `id` — Next.js App Router client components use `useParams()`, not `params` prop
+- All three data sources are fetched in parallel via `Promise.all`: `/api/campaigns/[id]`, `/api/campaigns/[id]/settings`, `/api/subreddits?campaign=id`
+- Settings source display: no DB row → "default" badge; DB row with `is_auto_tuned=1` → "auto-tuned"; `is_auto_tuned=0` → "manual"
+- Tuning history log is derived from `settingsData.tuningHistoryByKey` — flatten all per-key arrays, sort by `changed_at DESC`, slice 30
+- `editValues` state pre-populated from effective DB values (or stringified defaults) on load — input type is always text for flexibility
+- Subreddit ratio color thresholds: > 2% green, 0.5–2% yellow, < 0.5% red (matching TASK-47 spec for consistency)
+
+## Subreddits API Notes (TASK-46)
+
+- `dashboard/app/api/subreddits/route.js` created in TASK-46 (required by campaign detail page) — TASK-47 builds its subreddits dashboard page on top of this same route
+- `?campaign=id` param: merges `getSubredditStats` rows with unscanned campaign + discovered subreddits (scans=0 rows) so all subreddits appear even before first scan
+- Without `?campaign` param: returns all subreddits across all campaigns with `campaign_id` field — TASK-47 uses this for the cross-campaign subreddits table
+- Path depth from `dashboard/app/api/subreddits/route.js` to `amplify/src/`: `../../../../src/` (4 levels)
