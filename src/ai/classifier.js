@@ -1,7 +1,16 @@
 const { askClaude } = require('./claude-browser');
 const { detectInjection } = require('./injection-guard');
 
-function buildPrompt(post, campaign) {
+const DEFAULT_REPLY_STYLES = ['helpful fellow traveler', 'expat living in the region', 'frequent visitor who found a fix'];
+
+function pickReplyStyle(resolvedSettings) {
+  const style = resolvedSettings && resolvedSettings.reply_style;
+  if (!style) return DEFAULT_REPLY_STYLES[Math.floor(Math.random() * DEFAULT_REPLY_STYLES.length)];
+  if (Array.isArray(style)) return style[Math.floor(Math.random() * style.length)];
+  return style;
+}
+
+function buildPrompt(post, campaign, replyStyle) {
   const platform = post.platform || 'reddit';
   const postContext = `${post.title || ''} ${post.body || ''}`.trim();
 
@@ -25,7 +34,7 @@ TASK:
 2. If confidence >= 8: write a short, natural reply (2-4 sentences) that:
    - Acknowledges their specific struggle (don't be generic)
    - Mentions the product name and URL naturally
-   - Sounds like a helpful fellow user, NOT a bot or ad
+   - Write your reply in the natural voice of: ${replyStyle}. Keep it conversational, 2-3 sentences.
    - Does NOT say "I made this" or sound promotional
    - Does NOT use phrases like "game changer", "check it out", "amazing tool"
 3. If confidence < 8: skip.
@@ -40,7 +49,7 @@ function parseResponse(text) {
   return JSON.parse(stripped);
 }
 
-async function classifyAndReply(browser, post, campaign) {
+async function classifyAndReply(browser, post, campaign, resolvedSettings = {}) {
   const commentBody = post.commentBody || '';
   const postContext = `${post.title || ''} ${post.body || ''}`.trim();
 
@@ -54,8 +63,9 @@ async function classifyAndReply(browser, post, campaign) {
     return { match: false, confidence: 0, reply: null, reason: 'injection_detected', pattern: contextCheck.pattern };
   }
 
+  const replyStyle = pickReplyStyle(resolvedSettings);
   const aiUrl = campaign.ai_url || undefined;
-  const prompt = buildPrompt(post, campaign);
+  const prompt = buildPrompt(post, campaign, replyStyle);
 
   let responseText;
   try {

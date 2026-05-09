@@ -63,7 +63,7 @@ async function processNewPosts(browser, page, posts, campaign, stats, dryRun, re
 
       let result;
       try {
-        result = await classifyAndReply(browser, postData, campaign);
+        result = await classifyAndReply(browser, postData, campaign, resolvedSettings);
       } catch (err) {
         console.warn(chalk.yellow(`[bot] classifyAndReply error: ${err.message}`));
         continue;

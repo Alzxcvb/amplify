@@ -257,6 +257,15 @@ node src/index.js --campaign=arrival-pass --dry-run
 - Applied in bot.js in both the subreddit loop (`freshPosts`) and keyword search loop (`freshSearchPosts`)
 - `resolvedSettings.post_age_days` drives the threshold — auto-tuner can adjust this via campaign_settings
 
+## Reply Style Variation Notes (TASK-39)
+
+- `pickReplyStyle(resolvedSettings)` in classifier.js picks the style: array → random element, string → use directly, falsy → random from DEFAULT_REPLY_STYLES
+- DEFAULT_REPLY_STYLES = `['helpful fellow traveler', 'expat living in the region', 'frequent visitor who found a fix']`
+- Style is injected into the prompt as a bullet: "Write your reply in the natural voice of: [style]. Keep it conversational, 2-3 sentences."
+- `classifyAndReply(browser, post, campaign, resolvedSettings = {})` — `resolvedSettings` is 4th arg, defaults to `{}`
+- bot.js passes `resolvedSettings` as 4th arg to `classifyAndReply` in `processNewPosts`
+- `reply_style` in campaign_settings can be a string (single style) or a JSON array of options (auto-tuner can rotate them)
+
 ## Auto-Tuner Bot Wiring Notes (TASK-37)
 
 - `getCampaignSetting` and `getRecentRunStats` are imported from `./state/db` (already exported from db.js)

@@ -90,7 +90,7 @@
 
 ## Phase 15: Reply Style Variation
 
-- [ ] TASK-39: Reply style variation — in src/ai/classifier.js: read resolvedSettings.reply_style (passed in as param). Default options if not set: ['helpful fellow traveler', 'expat living in the region', 'frequent visitor who found a fix']. Pick randomly if array, use directly if string. Inject into classifier prompt: "Write your reply in the natural voice of: [style]. Keep it conversational, 2-3 sentences." Update classifyAndReply signature to accept resolvedSettings. Update bot.js to pass resolvedSettings through. node --check verify. Depends: TASK-30.
+- [x] TASK-39: Reply style variation — in src/ai/classifier.js: read resolvedSettings.reply_style (passed in as param). Default options if not set: ['helpful fellow traveler', 'expat living in the region', 'frequent visitor who found a fix']. Pick randomly if array, use directly if string. Inject into classifier prompt: "Write your reply in the natural voice of: [style]. Keep it conversational, 2-3 sentences." Update classifyAndReply signature to accept resolvedSettings. Update bot.js to pass resolvedSettings through. node --check verify. Depends: TASK-30.
 
 ## Phase 16: Duplicate Reply Guard
 
