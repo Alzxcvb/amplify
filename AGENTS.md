@@ -288,3 +288,11 @@ node src/index.js --campaign=arrival-pass --dry-run
 - Top-level `newSubredditsDiscovered` is a count (sum of per-campaign `newSubredditsDiscovered.length`); campaign-level `discoveredSubreddits` is the array
 - `fs.mkdirSync(runsDir, { recursive: true })` creates the dir on first run — no pre-existing dir needed
 - TASK-42 dashboard API reads these files at GET /api/runs — sorted desc by startedAt
+
+## Runs API + Page Notes (TASK-42)
+
+- `dashboard/app/api/runs/route.js` uses `import.meta.url` + `fileURLToPath` + `dirname` to compute `__dirname` in ESM, then resolves `../../../../data/runs` — same pattern as needing `createRequire` for CJS modules
+- `existsSync(runsDir)` guard returns `[]` if the dir doesn't exist yet (first run, no history)
+- `dashboard/app/runs/page.js` is a `'use client'` component — uses `useState` for expanded row index, toggling campaign breakdown on click
+- `tuningChanges` decision types: `'applied'`, `'reverted'`, `'proposed'`, `'subreddit_flagged'` — each has different fields; `tuningLabel()` formats them for display
+- `node --check` passes on route.js (pure ESM, no JSX); page.js fails on JSX as expected (per Dashboard Page Notes)
