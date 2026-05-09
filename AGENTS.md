@@ -365,3 +365,10 @@ node src/index.js --campaign=arrival-pass --dry-run
 - Layout uses `flex min-h-screen` on body: sidebar is `w-56 shrink-0`, content area is `flex-1 overflow-auto`
 - "New Campaign" button lives in a bottom section of the sidebar, separated by a border-t from the nav links
 - `node --check` fails on Sidebar.js (JSX) — expected per Dashboard Page Notes; verified structurally correct
+
+## Campaigns List Page Notes (TASK-50)
+
+- `dashboard/app/api/campaigns/route.js` updated to read all campaign files directly (not via loadCampaigns) — returns inactive campaigns too so the toggle UI works; home page already filters with `c.active !== false`
+- API enriches each campaign with `replies24h` (DB count query, cutoff = now - 86400s) and `lastMatchRatio` (most recent run_stats row for that campaign_id)
+- Toggle calls `PUT /api/campaigns/[id]` with `{ active: campaign.active === false }` — flips current state; then re-fetches the campaign list to reflect the change
+- `node --check` fails on page.js (JSX) — expected; route.js passes `node --check`
