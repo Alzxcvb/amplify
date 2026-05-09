@@ -1,5 +1,7 @@
 'use strict';
 
+const { afterPageLoad, scrollPause } = require('../../browser/human');
+
 async function scrapeSubreddit(page, subredditName) {
   const sub = subredditName.replace(/^r\//, '');
   const url = `https://www.reddit.com/r/${sub}/new/`;
@@ -39,13 +41,13 @@ async function scrapeSubreddit(page, subredditName) {
     return [];
   }
 
-  // Anti-detection delay before scraping
-  await page.waitForTimeout(1000 + Math.random() * 2000);
+  // Human-like pause before scraping
+  await afterPageLoad();
 
   // Scroll 3 times to load more posts
   for (let i = 0; i < 3; i++) {
     await page.evaluate(() => window.scrollBy(0, 1500));
-    await page.waitForTimeout(1500);
+    await scrollPause();
   }
 
   const posts = await page.evaluate((subreddit) => {
@@ -178,7 +180,7 @@ async function scrapePostComments(page, postUrl, limit = 25) {
     return [];
   }
 
-  await page.waitForTimeout(1000 + Math.random() * 1500);
+  await afterPageLoad();
 
   const comments = await page.evaluate((LIMIT) => {
     const results = [];
@@ -276,11 +278,11 @@ async function scrapeRedditSearch(page, query) {
     return [];
   }
 
-  await page.waitForTimeout(1000 + Math.random() * 2000);
+  await afterPageLoad();
 
   for (let i = 0; i < 3; i++) {
     await page.evaluate(() => window.scrollBy(0, 1500));
-    await page.waitForTimeout(1500);
+    await scrollPause();
   }
 
   const posts = await page.evaluate(() => {

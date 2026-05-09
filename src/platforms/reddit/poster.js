@@ -1,5 +1,7 @@
 'use strict';
 
+const { afterPageLoad, thinkingPause, afterAction } = require('../../browser/human');
+
 async function postReply(page, commentUrl, replyText, options = {}) {
   const dryRun = options.dryRun === true;
 
@@ -16,7 +18,9 @@ async function postReply(page, commentUrl, replyText, options = {}) {
     if (status === 404) throw new Error('Comment not found (404)');
   }
 
-  await page.waitForTimeout(1500 + Math.random() * 1000);
+  // Pause after page load, then simulate reading the thread before replying
+  await afterPageLoad();
+  await thinkingPause();
 
   const bodyText = await page.locator('body').textContent({ timeout: 5000 }).catch(() => '');
   const bodyLower = bodyText.toLowerCase();
@@ -131,7 +135,7 @@ async function postReply(page, commentUrl, replyText, options = {}) {
   }
   await saveBtn.click();
 
-  await page.waitForTimeout(2000);
+  await afterAction();
 
   const afterBodyText = await page.locator('body').textContent({ timeout: 5000 }).catch(() => '');
   if (afterBodyText.toLowerCase().includes('you are doing that too much')) {

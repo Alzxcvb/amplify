@@ -11,6 +11,7 @@ const { classifyAndReply } = require('./ai/classifier');
 const { hasSeenPost, markPostSeen, logReply, logSkipped, hasRepliedToComment, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, addDiscoveredSubreddit, getDiscoveredSubreddits, getCampaignSetting, getRecentRunStats } = require('./state/db');
 const { discoverSubreddits } = require('./discovery/subreddit-finder');
 const { SCROLL_PAUSE_MS, resolveSettings } = require('./config');
+const { betweenPages, readingPause } = require('./browser/human');
 const { recordRunStats } = require('./tuning/run-stats');
 const { tuneCampaign } = require('./tuning/auto-tuner');
 
@@ -57,6 +58,9 @@ async function processNewPosts(browser, page, posts, campaign, stats, dryRun, re
         console.log(chalk.dim(`[bot] already replied to this comment: ${comment.url}`));
         continue;
       }
+
+      // Human-like pause between comments (simulate reading)
+      await readingPause();
 
       const postData = {
         url: post.url,
@@ -203,6 +207,9 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
 
           await processNewPosts(browser, page, newPosts, campaign, stats, dryRun, resolvedSettings);
 
+          // Human-like pause before moving to next subreddit
+          await betweenPages();
+
           const deltaComments = stats[campaign.id].commentsChecked - beforeComments;
           const deltaMatches = stats[campaign.id].matchesFound - beforeMatches;
 
@@ -262,6 +269,9 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
 
           const rateLimited = await processNewPosts(browser, page, newSearchPosts, campaign, stats, dryRun, resolvedSettings);
           if (rateLimited) break;
+
+          // Human-like pause between keyword searches
+          await betweenPages();
         }
       } finally {
         await closePage(page);
