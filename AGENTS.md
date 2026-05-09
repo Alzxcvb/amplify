@@ -177,3 +177,10 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `getTuningHistory` orders by `changed_at DESC, id DESC` — `id DESC` secondary sort avoids non-deterministic ordering when two entries land in the same second
 - Write verification tests with a unique campaign ID per run (e.g. `'t28-' + Date.now()`) to avoid stale DB state polluting assertions
 - All new functions are exported alongside existing exports in the `module.exports` block
+
+## Settings Resolver Notes
+
+- `resolveSettings(campaignId, campaignJson)` in src/config.js merges: DEFAULTS → campaignJson[key] → DB value (DB wins)
+- `getCampaignSetting` returns a string from SQLite — use `typeof defaultVal === 'number' ? Number(dbVal) : dbVal` for type coercion
+- `DEFAULTS` object is exported from config.js for use in tests and API routes
+- Existing ALL_CAPS constants are kept alongside DEFAULTS for backward compatibility with code that references them directly
