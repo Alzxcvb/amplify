@@ -335,6 +335,15 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `editValues` state pre-populated from effective DB values (or stringified defaults) on load — input type is always text for flexibility
 - Subreddit ratio color thresholds: > 2% green, 0.5–2% yellow, < 0.5% red (matching TASK-47 spec for consistency)
 
+## Subreddits Dashboard Page Notes (TASK-47)
+
+- `dashboard/app/subreddits/page.js` is a `'use client'` component — fetches `/api/subreddits` (no `?campaign` param) for all-campaigns view
+- Sortable by ratio: click "Ratio" header toggles asc/desc; default is desc (highest ratio first)
+- `ratioPercent(row)` = `matches_found / comments_checked * 100`; rows with `comments_checked === 0` display "—" and sort as 0
+- Status badge logic: `flagged=1` → red "Flagged"; `source='discovered'` → purple "Discovered"; otherwise → green "Active"
+- Subreddit cell links to `https://www.reddit.com/{subreddit}` (the subreddit string already includes "r/")
+- `node --check` always fails on this file (JSX) — expected per Dashboard Page Notes above
+
 ## Subreddits API Notes (TASK-46)
 
 - `dashboard/app/api/subreddits/route.js` created in TASK-46 (required by campaign detail page) — TASK-47 builds its subreddits dashboard page on top of this same route
