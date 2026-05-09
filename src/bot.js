@@ -9,6 +9,7 @@ const { classifyAndReply } = require('./ai/classifier');
 const { hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, addDiscoveredSubreddit, getDiscoveredSubreddits } = require('./state/db');
 const { discoverSubreddits } = require('./discovery/subreddit-finder');
 const { SCROLL_PAUSE_MS, resolveSettings } = require('./config');
+const { recordRunStats } = require('./tuning/run-stats');
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -225,6 +226,8 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
       } finally {
         await closePage(page);
       }
+
+      recordRunStats(campaign.id, stats[campaign.id], resolvedSettings);
     }
   } finally {
     await browser.close();

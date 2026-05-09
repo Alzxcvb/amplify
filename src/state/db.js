@@ -96,6 +96,18 @@ function initTables(database) {
       source        TEXT NOT NULL DEFAULT 'claude',
       PRIMARY KEY (campaign_id, subreddit)
     );
+
+    CREATE TABLE IF NOT EXISTS run_stats (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id       TEXT NOT NULL,
+      run_at            INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+      posts_scanned     INTEGER NOT NULL DEFAULT 0,
+      comments_checked  INTEGER NOT NULL DEFAULT 0,
+      matches_found     INTEGER NOT NULL DEFAULT 0,
+      replies_posted    INTEGER NOT NULL DEFAULT 0,
+      match_ratio       REAL NOT NULL DEFAULT 0,
+      settings_snapshot TEXT
+    );
   `);
 }
 
@@ -273,6 +285,20 @@ function getDiscoveredSubreddits(campaignId) {
     .map(r => r.subreddit);
 }
 
+function saveRunStats(campaignId, { postsScanned = 0, commentsChecked = 0, matchesFound = 0, repliesPosted = 0, matchRatio = 0, settingsSnapshot = null } = {}) {
+  const now = Math.floor(Date.now() / 1000);
+  getDb()
+    .prepare(`INSERT INTO run_stats (campaign_id, run_at, posts_scanned, comments_checked, matches_found, replies_posted, match_ratio, settings_snapshot)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(campaignId, now, postsScanned, commentsChecked, matchesFound, repliesPosted, matchRatio, settingsSnapshot);
+}
+
+function getRecentRunStats(campaignId, limit = 5) {
+  return getDb()
+    .prepare('SELECT * FROM run_stats WHERE campaign_id = ? ORDER BY run_at DESC, id DESC LIMIT ?')
+    .all(campaignId, limit);
+}
+
 module.exports = {
   getDb,
   hasSeenPost, markPostSeen,
@@ -282,4 +308,5 @@ module.exports = {
   getCampaignSetting, setCampaignSetting, resetCampaignSetting, getAllSettings, getTuningHistory,
   updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, getSubredditMatchRatio,
   addDiscoveredSubreddit, getDiscoveredSubreddits,
+  saveRunStats, getRecentRunStats,
 };

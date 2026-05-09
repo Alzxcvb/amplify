@@ -228,3 +228,11 @@ node src/index.js --campaign=arrival-pass --dry-run
 - Discovery is triggered after the subreddit loop, before keyword scan — keyword scans don't flag anything so triggering after them would delay saves
 - `discoverSubreddits` call site is wrapped in try/catch (the function itself suppresses askClaude errors, but outer errors e.g. bad campaign shape would otherwise kill the run)
 - Discovered subreddits are saved immediately but scanned on the NEXT run (they're merged into `allSubreddits` at loop start, so a subreddit discovered this run won't be scanned until the bot restarts)
+
+## Per-Run Stats Notes (TASK-35)
+
+- `run_stats` table: `(id, campaign_id, run_at, posts_scanned, comments_checked, matches_found, replies_posted, match_ratio, settings_snapshot TEXT)`
+- `saveRunStats(campaignId, {postsScanned, commentsChecked, matchesFound, repliesPosted, matchRatio, settingsSnapshot})` inserts one row per campaign per run
+- `getRecentRunStats(campaignId, limit=5)` orders by `run_at DESC, id DESC` — secondary sort handles same-second writes
+- `src/tuning/run-stats.js` exports `recordRunStats(campaignId, campaignStats, resolvedSettings)` — computes `match_ratio = matchesFound / Math.max(commentsChecked, 1)` and calls `saveRunStats`
+- `recordRunStats` is called in `bot.js` after `closePage` (campaign `try/finally`) but before the next campaign iteration — stats are final at that point, but outside the `finally` so exceptions during a run don't write partial stats
