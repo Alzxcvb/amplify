@@ -8,8 +8,8 @@ const { loadCampaigns } = require('./campaigns/loader');
 const { scrapeSubreddit, scrapePostComments, scrapeRedditSearch } = require('./platforms/reddit/scraper');
 const { postReply } = require('./platforms/reddit/poster');
 const { classifyAndReply } = require('./ai/classifier');
-const { hasSeenPost, markPostSeen, logReply, logSkipped, hasRepliedToComment, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, addDiscoveredSubreddit, getDiscoveredSubreddits, getCampaignSetting, getRecentRunStats } = require('./state/db');
-const { discoverSubreddits } = require('./discovery/subreddit-finder');
+const { hasSeenPost, markPostSeen, logReply, logSkipped, hasRepliedToComment, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, addDiscoveredSubreddit, getDiscoveredSubreddits, getCampaignSetting, setCampaignSetting, getRecentRunStats } = require('./state/db');
+const { discoverSubreddits, discoverKeywords } = require('./discovery/subreddit-finder');
 const { SCROLL_PAUSE_MS, resolveSettings } = require('./config');
 const { betweenPages, readingPause } = require('./browser/human');
 const { recordRunStats } = require('./tuning/run-stats');
@@ -242,24 +242,38 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
           }
         }
 
-        if (newlyFlagged.length > 0) {
-          console.log(chalk.cyan(`[bot] Discovering subreddits to replace ${newlyFlagged.length} newly flagged...`));
+        // Proactive subreddit discovery — always expand the list if room remains
+        const MAX_SUBREDDITS = 20;
+        const currentSubCount = allSubreddits.length;
+        if (currentSubCount < MAX_SUBREDDITS) {
+          const reason = newlyFlagged.length > 0
+            ? `replacing ${newlyFlagged.length} flagged`
+            : `expanding from ${currentSubCount}`;
+          console.log(chalk.cyan(`[bot] Discovering new subreddits (${reason})...`));
           let discovered = [];
           try {
-            discovered = await discoverSubreddits(browser, campaign, newlyFlagged);
+            discovered = await discoverSubreddits(browser, campaign, newlyFlagged, allSubreddits);
           } catch (err) {
             console.warn(chalk.yellow(`[bot] discoverSubreddits error: ${err.message}`));
           }
           for (const sub of discovered) {
-            addDiscoveredSubreddit(campaign.id, sub, 'claude');
+            addDiscoveredSubreddit(campaign.id, sub, 'groq');
           }
           if (discovered.length > 0) {
-            console.log(chalk.cyan(`[bot] Queued ${discovered.length} new subreddits for next run: ${discovered.join(', ')}`));
+            console.log(chalk.cyan(`[bot] Queued ${discovered.length} new subreddits: ${discovered.join(', ')}`));
             stats[campaign.id].newSubredditsDiscovered = discovered;
           }
         }
 
-        const keywords = (campaign.pain_points || []).slice(0, 3);
+        // Load discovered keywords from DB (persisted across runs)
+        let discoveredKeywords = [];
+        const savedKeywords = getCampaignSetting(campaign.id, 'discovered_keywords', null);
+        if (savedKeywords) {
+          try { discoveredKeywords = JSON.parse(savedKeywords); } catch {}
+        }
+        const baseKeywords = campaign.pain_points || [];
+        const allKeywords = [...new Set([...baseKeywords, ...discoveredKeywords])];
+        const keywords = allKeywords.slice(0, 6);
         for (const keyword of keywords) {
           console.log(chalk.blue(`[bot] Keyword search: "${keyword}" for campaign: ${campaign.id}`));
 
@@ -286,6 +300,22 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
 
           // Human-like pause between keyword searches
           await betweenPages();
+        }
+
+        // Discover new keywords for future runs (cap at 20 total)
+        const MAX_KEYWORDS = 20;
+        if (allKeywords.length < MAX_KEYWORDS) {
+          console.log(chalk.cyan(`[bot] Discovering new search keywords (have ${allKeywords.length})...`));
+          try {
+            const newKw = await discoverKeywords(campaign, allKeywords);
+            if (newKw.length > 0) {
+              const merged = [...new Set([...discoveredKeywords, ...newKw])].slice(0, MAX_KEYWORDS - baseKeywords.length);
+              setCampaignSetting(campaign.id, 'discovered_keywords', JSON.stringify(merged), { reason: 'keyword_discovery' });
+              console.log(chalk.cyan(`[bot] Saved ${newKw.length} new keywords: ${newKw.join(', ')}`));
+            }
+          } catch (err) {
+            console.warn(chalk.yellow(`[bot] discoverKeywords error: ${err.message}`));
+          }
         }
       } finally {
         await closePage(page);
