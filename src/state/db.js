@@ -42,6 +42,16 @@ function initTables(database) {
       reason      TEXT NOT NULL,
       skipped_at  INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
     );
+
+    CREATE TABLE IF NOT EXISTS injection_attempts (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id     TEXT NOT NULL,
+      post_url        TEXT NOT NULL,
+      comment_url     TEXT NOT NULL,
+      pattern_matched TEXT NOT NULL,
+      comment_preview TEXT NOT NULL,
+      detected_at     INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+    );
   `);
 }
 
@@ -95,7 +105,20 @@ function getStats() {
   const byCampaignRows = database.prepare('SELECT campaign_id, COUNT(*) AS n FROM sent_replies GROUP BY campaign_id').all();
   const repliesByCampaign = {};
   for (const row of byCampaignRows) repliesByCampaign[row.campaign_id] = row.n;
-  return { totalReplies, totalSkipped, repliesByCampaign, last24hReplies };
+  const injectionAttempts = database.prepare('SELECT COUNT(*) AS n FROM injection_attempts').get().n;
+  return { totalReplies, totalSkipped, repliesByCampaign, last24hReplies, injectionAttempts };
 }
 
-module.exports = { getDb, hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies, getActivityLog, getStats };
+function logInjection(campaignId, postUrl, commentUrl, pattern, commentPreview) {
+  getDb()
+    .prepare('INSERT INTO injection_attempts (campaign_id, post_url, comment_url, pattern_matched, comment_preview, detected_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(campaignId, postUrl, commentUrl, pattern, commentPreview, Math.floor(Date.now() / 1000));
+}
+
+function getInjectionAttempts(limit = 50) {
+  return getDb()
+    .prepare('SELECT * FROM injection_attempts ORDER BY detected_at DESC LIMIT ?')
+    .all(limit);
+}
+
+module.exports = { getDb, hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies, getActivityLog, getStats, logInjection, getInjectionAttempts };

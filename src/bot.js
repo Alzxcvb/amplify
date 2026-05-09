@@ -6,7 +6,7 @@ const { loadCampaigns } = require('./campaigns/loader');
 const { scrapeSubreddit, scrapePostComments, scrapeRedditSearch } = require('./platforms/reddit/scraper');
 const { postReply } = require('./platforms/reddit/poster');
 const { classifyAndReply } = require('./ai/classifier');
-const { hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies, getStats } = require('./state/db');
+const { hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies, getStats, logInjection } = require('./state/db');
 const {
   MAX_REPLIES_PER_CAMPAIGN_PER_HOUR,
   MIN_SECONDS_BETWEEN_REPLIES,
@@ -68,6 +68,13 @@ async function processNewPosts(browser, page, posts, campaign, stats, dryRun) {
         result = await classifyAndReply(browser, postData, campaign);
       } catch (err) {
         console.warn(chalk.yellow(`[bot] classifyAndReply error: ${err.message}`));
+        continue;
+      }
+
+      if (result.reason === 'injection_detected') {
+        console.log(chalk.red(`[bot] Injection detected (${result.pattern}) in comment: ${comment.url}`));
+        logInjection(campaign.id, post.url, comment.url, result.pattern, (comment.body || '').slice(0, 200));
+        stats[campaign.id].skipped++;
         continue;
       }
 

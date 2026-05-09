@@ -156,6 +156,13 @@ node src/index.js --campaign=arrival-pass --dry-run
 - Instruction #4 in the TASK section asks Claude to flag suspected injections it sees during analysis (defense in depth)
 - `node --check` passes on classifier.js (no JSX, pure CommonJS)
 
+## Injection Attempts DB Notes
+
+- `injection_attempts` table is created in `initTables` alongside the other tables — no separate migration needed since SQLite `CREATE TABLE IF NOT EXISTS` is idempotent
+- `logInjection(campaignId, postUrl, commentUrl, pattern, commentPreview)` stores the first 200 chars of comment body as preview
+- `getStats()` now includes `injectionAttempts` count — consumers of this API should expect the new field
+- In `bot.js`, injection check comes BEFORE the match/confidence check — the `reason === 'injection_detected'` branch increments `stats.skipped` and calls `continue` to skip the comment entirely
+
 ## Integration Dry-Run Test Notes
 
 - `db.js` has no `initDb` export — call `getDb()` to trigger initialization (lazy singleton)
