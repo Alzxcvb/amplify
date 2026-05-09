@@ -123,7 +123,7 @@ async function scrapeSubreddit(page, subredditName) {
   return posts;
 }
 
-async function scrapePostComments(page, postUrl) {
+async function scrapePostComments(page, postUrl, limit = 25) {
   let response;
   try {
     response = await page.goto(postUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -159,9 +159,8 @@ async function scrapePostComments(page, postUrl) {
 
   await page.waitForTimeout(1000 + Math.random() * 1500);
 
-  const comments = await page.evaluate(() => {
+  const comments = await page.evaluate((LIMIT) => {
     const results = [];
-    const LIMIT = 25;
     const SKIP_AUTHORS = new Set(['[deleted]', '[removed]', 'automoderator']);
 
     const shredditComments = document.querySelectorAll('shreddit-comment');
@@ -219,7 +218,7 @@ async function scrapePostComments(page, postUrl) {
     }
 
     return results;
-  });
+  }, limit);
 
   return comments;
 }

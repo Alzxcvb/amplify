@@ -184,3 +184,11 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `getCampaignSetting` returns a string from SQLite — use `typeof defaultVal === 'number' ? Number(dbVal) : dbVal` for type coercion
 - `DEFAULTS` object is exported from config.js for use in tests and API routes
 - Existing ALL_CAPS constants are kept alongside DEFAULTS for backward compatibility with code that references them directly
+
+## Settings Resolver Wiring Notes
+
+- `isRateLimited(campaignId, settings)` now takes resolved settings as second arg — uses `settings.max_replies_per_hour` and `settings.min_seconds_between_replies` instead of module-level constants
+- `processNewPosts(browser, page, posts, campaign, stats, dryRun, resolvedSettings)` takes resolved settings as 7th arg — passes `resolvedSettings.max_comments_per_post` to `scrapePostComments` and `resolvedSettings.confidence_threshold` to the gate check
+- `scrapePostComments(page, postUrl, limit = 25)` now accepts optional limit param — pass it as the second arg to `page.evaluate((LIMIT) => {...}, limit)` (not closure capture; browser context can't see Node scope)
+- Resolved settings are logged per-campaign via `chalk.dim` at the top of each campaign loop
+- `post_age_days` is resolved and logged but not yet used to filter — TASK-38 adds the actual filter once posts carry a `postedAt` timestamp
