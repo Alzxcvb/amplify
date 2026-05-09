@@ -75,6 +75,19 @@ function initTables(database) {
       reason           TEXT,
       changed_at       INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
     );
+
+    CREATE TABLE IF NOT EXISTS subreddit_stats (
+      campaign_id       TEXT NOT NULL,
+      subreddit         TEXT NOT NULL,
+      scans             INTEGER NOT NULL DEFAULT 0,
+      posts_found       INTEGER NOT NULL DEFAULT 0,
+      comments_checked  INTEGER NOT NULL DEFAULT 0,
+      matches_found     INTEGER NOT NULL DEFAULT 0,
+      last_scanned_at   INTEGER,
+      flagged           INTEGER NOT NULL DEFAULT 0,
+      flag_reason       TEXT,
+      PRIMARY KEY (campaign_id, subreddit)
+    );
   `);
 }
 
@@ -193,6 +206,51 @@ function getTuningHistory(campaignId, limit = 20) {
     .all(campaignId, limit);
 }
 
+function updateSubredditStats(campaignId, subreddit, { postsFound = 0, commentsChecked = 0, matchesFound = 0 } = {}) {
+  const now = Math.floor(Date.now() / 1000);
+  getDb().prepare(`
+    INSERT INTO subreddit_stats (campaign_id, subreddit, scans, posts_found, comments_checked, matches_found, last_scanned_at)
+    VALUES (?, ?, 1, ?, ?, ?, ?)
+    ON CONFLICT(campaign_id, subreddit) DO UPDATE SET
+      scans            = scans + 1,
+      posts_found      = posts_found + excluded.posts_found,
+      comments_checked = comments_checked + excluded.comments_checked,
+      matches_found    = matches_found + excluded.matches_found,
+      last_scanned_at  = excluded.last_scanned_at
+  `).run(campaignId, subreddit, postsFound, commentsChecked, matchesFound, now);
+}
+
+function flagSubreddit(campaignId, subreddit, reason) {
+  getDb().prepare(`
+    INSERT INTO subreddit_stats (campaign_id, subreddit, flagged, flag_reason)
+    VALUES (?, ?, 1, ?)
+    ON CONFLICT(campaign_id, subreddit) DO UPDATE SET
+      flagged     = 1,
+      flag_reason = excluded.flag_reason
+  `).run(campaignId, subreddit, reason);
+}
+
+function isSubredditFlagged(campaignId, subreddit) {
+  const row = getDb()
+    .prepare('SELECT flagged FROM subreddit_stats WHERE campaign_id = ? AND subreddit = ?')
+    .get(campaignId, subreddit);
+  return row ? row.flagged === 1 : false;
+}
+
+function getSubredditStats(campaignId) {
+  return getDb()
+    .prepare('SELECT * FROM subreddit_stats WHERE campaign_id = ? ORDER BY subreddit ASC')
+    .all(campaignId);
+}
+
+function getSubredditMatchRatio(campaignId, subreddit) {
+  const row = getDb()
+    .prepare('SELECT comments_checked, matches_found FROM subreddit_stats WHERE campaign_id = ? AND subreddit = ?')
+    .get(campaignId, subreddit);
+  if (!row || row.comments_checked === 0) return 0;
+  return row.matches_found / row.comments_checked;
+}
+
 module.exports = {
   getDb,
   hasSeenPost, markPostSeen,
@@ -200,4 +258,5 @@ module.exports = {
   getActivityLog, getStats,
   logInjection, getInjectionAttempts,
   getCampaignSetting, setCampaignSetting, resetCampaignSetting, getAllSettings, getTuningHistory,
+  updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, getSubredditMatchRatio,
 };

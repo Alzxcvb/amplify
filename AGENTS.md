@@ -192,3 +192,11 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `scrapePostComments(page, postUrl, limit = 25)` now accepts optional limit param — pass it as the second arg to `page.evaluate((LIMIT) => {...}, limit)` (not closure capture; browser context can't see Node scope)
 - Resolved settings are logged per-campaign via `chalk.dim` at the top of each campaign loop
 - `post_age_days` is resolved and logged but not yet used to filter — TASK-38 adds the actual filter once posts carry a `postedAt` timestamp
+
+## Subreddit Stats DB Notes
+
+- `subreddit_stats` PK is `(campaign_id, subreddit)` — `updateSubredditStats` uses `INSERT ... ON CONFLICT DO UPDATE` to accumulate counts across scans
+- `updateSubredditStats` increments `scans` by 1 and adds to posts/comments/matches totals each call — callers pass per-scan deltas, not cumulative totals
+- `flagSubreddit` also uses upsert so it works whether or not the row already exists
+- `isSubredditFlagged` returns `false` (not an error) when the subreddit has no row yet
+- `getSubredditMatchRatio` returns `0` when `comments_checked == 0` to avoid division-by-zero
