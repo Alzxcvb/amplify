@@ -234,8 +234,9 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
           });
 
           const subRow = getSubredditStats(campaign.id).find(s => s.subreddit === subreddit);
-          if (subRow && subRow.scans >= 3 && subRow.matches_found === 0) {
-            flagSubreddit(campaign.id, subreddit, 'no_matches_after_3_scans');
+          const FLAG_AFTER_SCANS = 10;
+          if (subRow && subRow.scans >= FLAG_AFTER_SCANS && subRow.matches_found === 0) {
+            flagSubreddit(campaign.id, subreddit, `no_matches_after_${FLAG_AFTER_SCANS}_scans`);
             console.log(chalk.red(`[bot] Auto-flagged ${subreddit}: no matches after ${subRow.scans} scans`));
             stats[campaign.id].flaggedSubreddits.push(subreddit);
             newlyFlagged.push(subreddit);
