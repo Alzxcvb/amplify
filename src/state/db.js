@@ -133,6 +133,10 @@ function logSkipped(campaignId, postUrl, reason) {
     .run(campaignId, postUrl, reason, Math.floor(Date.now() / 1000));
 }
 
+function hasRepliedToComment(commentUrl) {
+  return !!getDb().prepare('SELECT 1 FROM sent_replies WHERE comment_url = ?').get(commentUrl);
+}
+
 function getRecentReplies(campaignId, hours) {
   const cutoff = Math.floor(Date.now() / 1000) - hours * 3600;
   return getDb()
@@ -302,7 +306,7 @@ function getRecentRunStats(campaignId, limit = 5) {
 module.exports = {
   getDb,
   hasSeenPost, markPostSeen,
-  logReply, logSkipped, getRecentReplies,
+  logReply, logSkipped, hasRepliedToComment, getRecentReplies,
   getActivityLog, getStats,
   logInjection, getInjectionAttempts,
   getCampaignSetting, setCampaignSetting, resetCampaignSetting, getAllSettings, getTuningHistory,

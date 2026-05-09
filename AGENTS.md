@@ -273,3 +273,9 @@ node src/index.js --campaign=arrival-pass --dry-run
 - Pending experiment is applied in-memory BEFORE the run: read `pending_experiment` JSON, apply `candidateValue` to `resolvedSettings[exp.parameter]` — only for non-`subreddit_set` params (subreddit_set is handled by the flagging machinery, not in-memory settings)
 - Tuner is called AFTER `recordRunStats` — this guarantees the just-completed run stats are in DB before evaluation
 - Decision logging: `applied` and `reverted` print "ratio" as percentage (×100); `proposed` shows current→candidate values; `subreddit_flagged` shows flagged subreddit name
+
+## Duplicate Comment Guard Notes (TASK-40)
+
+- `hasRepliedToComment(commentUrl)` queries `sent_replies WHERE comment_url = ?` — distinct from `hasSeenPost` which deduplicates posts, not specific comments
+- Check placed in `processNewPosts` AFTER the rate limit check but BEFORE the injection check and `classifyAndReply` call — avoids wasteful AI calls for already-handled comments
+- Skipped duplicates log with `chalk.dim` and `continue` — they don't count toward `stats.skipped` since they are not a new processing decision

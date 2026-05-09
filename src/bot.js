@@ -6,7 +6,7 @@ const { loadCampaigns } = require('./campaigns/loader');
 const { scrapeSubreddit, scrapePostComments, scrapeRedditSearch } = require('./platforms/reddit/scraper');
 const { postReply } = require('./platforms/reddit/poster');
 const { classifyAndReply } = require('./ai/classifier');
-const { hasSeenPost, markPostSeen, logReply, logSkipped, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, addDiscoveredSubreddit, getDiscoveredSubreddits, getCampaignSetting, getRecentRunStats } = require('./state/db');
+const { hasSeenPost, markPostSeen, logReply, logSkipped, hasRepliedToComment, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, addDiscoveredSubreddit, getDiscoveredSubreddits, getCampaignSetting, getRecentRunStats } = require('./state/db');
 const { discoverSubreddits } = require('./discovery/subreddit-finder');
 const { SCROLL_PAUSE_MS, resolveSettings } = require('./config');
 const { recordRunStats } = require('./tuning/run-stats');
@@ -49,6 +49,11 @@ async function processNewPosts(browser, page, posts, campaign, stats, dryRun, re
         console.log(chalk.yellow(`[bot] Rate limit reached for ${campaign.id}: ${rl.reason}`));
         rateLimitBroken = true;
         break;
+      }
+
+      if (hasRepliedToComment(comment.url)) {
+        console.log(chalk.dim(`[bot] already replied to this comment: ${comment.url}`));
+        continue;
       }
 
       const postData = {

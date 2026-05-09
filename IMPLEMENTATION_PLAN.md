@@ -94,7 +94,7 @@
 
 ## Phase 16: Duplicate Reply Guard
 
-- [ ] TASK-40: Exact comment URL dedup — in src/bot.js, before calling classifyAndReply: query sent_replies WHERE comment_url = commentUrl. If exists: skip with chalk.dim "already replied to this comment". This is separate from hasSeenPost (which deduplicates posts, not specific comments). Add hasRepliedToComment(commentUrl) function to src/state/db.js. node --check verify.
+- [x] TASK-40: Exact comment URL dedup — in src/bot.js, before calling classifyAndReply: query sent_replies WHERE comment_url = commentUrl. If exists: skip with chalk.dim "already replied to this comment". This is separate from hasSeenPost (which deduplicates posts, not specific comments). Add hasRepliedToComment(commentUrl) function to src/state/db.js. node --check verify.
 
 ## Phase 17: Session Run Reports
 
