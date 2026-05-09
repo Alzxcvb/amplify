@@ -5,6 +5,13 @@ const { afterPageLoad, thinkingPause, afterAction } = require('../../browser/hum
 async function postReply(page, commentUrl, replyText, options = {}) {
   const dryRun = options.dryRun === true;
 
+  // Dry run: no browser interaction needed — just log what would be posted
+  if (dryRun) {
+    console.log(`[DRY RUN] Would reply to: ${commentUrl}`);
+    console.log(`[DRY RUN] Reply text: ${replyText}`);
+    return;
+  }
+
   let response;
   try {
     response = await page.goto(commentUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -18,7 +25,7 @@ async function postReply(page, commentUrl, replyText, options = {}) {
     if (status === 404) throw new Error('Comment not found (404)');
   }
 
-  // Pause after page load, then simulate reading the thread before replying
+  // Simulate reading the thread before replying
   await afterPageLoad();
   await thinkingPause();
 
@@ -35,6 +42,14 @@ async function postReply(page, commentUrl, replyText, options = {}) {
     bodyLower.includes('this thread is archived')
   ) {
     throw new Error('Post is locked or archived');
+  }
+
+  // Check for login wall before attempting interaction
+  if (
+    (await page.locator('a[href*="/login"], a[href*="/register"]').count().catch(() => 0)) > 0 &&
+    (await page.locator('button', { hasText: /^reply$/i }).count().catch(() => 0)) === 0
+  ) {
+    throw new Error('Not logged in to Reddit — run: node setup-browser.js');
   }
 
   // Extract comment ID from URL to locate the specific comment element
@@ -84,7 +99,7 @@ async function postReply(page, commentUrl, replyText, options = {}) {
       replyClicked = true;
     } catch {
       if ((await page.locator('a[href*="/login"]').count().catch(() => 0)) > 0) {
-        throw new Error('Not logged in to Reddit');
+        throw new Error('Not logged in to Reddit — run: node setup-browser.js');
       }
       throw new Error('Reply button not found — post may be locked');
     }
@@ -105,14 +120,9 @@ async function postReply(page, commentUrl, replyText, options = {}) {
     replyInput = inputs.nth(inputCount - 1);
   } catch {
     if ((await page.locator('a[href*="/login"]').count().catch(() => 0)) > 0) {
-      throw new Error('Not logged in to Reddit');
+      throw new Error('Not logged in to Reddit — run: node setup-browser.js');
     }
     throw new Error('Reply textarea did not appear after clicking Reply');
-  }
-
-  if (dryRun) {
-    console.log(`[DRY RUN] Would post: ${replyText}`);
-    return;
   }
 
   await replyInput.click();
@@ -126,11 +136,10 @@ async function postReply(page, commentUrl, replyText, options = {}) {
   try {
     await saveBtn.waitFor({ state: 'visible', timeout: 5000 });
   } catch {
-    // Fall back to text-based match
     const textBtn = page.locator('button').filter({ hasText: /^(save|comment)$/i }).last();
     await textBtn.waitFor({ state: 'visible', timeout: 5000 });
     await textBtn.click();
-    await page.waitForTimeout(2000);
+    await afterAction();
     return;
   }
   await saveBtn.click();
