@@ -176,7 +176,14 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
             continue;
           }
 
-          const newPosts = posts.filter(p => !hasSeenPost(p.url));
+          const maxAgeSeconds = resolvedSettings.post_age_days * 86400;
+          const nowSeconds = Math.floor(Date.now() / 1000);
+          const freshPosts = posts.filter(p => !p.postedAt || (nowSeconds - p.postedAt) <= maxAgeSeconds);
+          const filteredByAge = posts.length - freshPosts.length;
+          if (filteredByAge > 0) {
+            console.log(chalk.dim(`[bot] ${subreddit}: filtered ${filteredByAge} posts older than ${resolvedSettings.post_age_days}d`));
+          }
+          const newPosts = freshPosts.filter(p => !hasSeenPost(p.url));
           console.log(chalk.gray(`[bot] ${subreddit}: ${posts.length} posts, ${newPosts.length} new`));
 
           const beforeComments = stats[campaign.id].commentsChecked;
@@ -231,7 +238,14 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
             continue;
           }
 
-          const newSearchPosts = searchPosts.filter(p => !hasSeenPost(p.url));
+          const maxAgeSeconds = resolvedSettings.post_age_days * 86400;
+          const nowSeconds = Math.floor(Date.now() / 1000);
+          const freshSearchPosts = searchPosts.filter(p => !p.postedAt || (nowSeconds - p.postedAt) <= maxAgeSeconds);
+          const filteredByAge = searchPosts.length - freshSearchPosts.length;
+          if (filteredByAge > 0) {
+            console.log(chalk.dim(`[bot] Keyword "${keyword}": filtered ${filteredByAge} posts older than ${resolvedSettings.post_age_days}d`));
+          }
+          const newSearchPosts = freshSearchPosts.filter(p => !hasSeenPost(p.url));
           console.log(chalk.gray(`[bot] Keyword "${keyword}": ${searchPosts.length} posts, ${newSearchPosts.length} new`));
 
           const rateLimited = await processNewPosts(browser, page, newSearchPosts, campaign, stats, dryRun, resolvedSettings);

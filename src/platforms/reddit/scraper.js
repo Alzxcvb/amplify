@@ -75,8 +75,22 @@ async function scrapeSubreddit(page, subredditName) {
           || el.getAttribute('thingid')
           || '';
 
+        let postedAt = null;
+        const createdTs = el.getAttribute('created-timestamp');
+        if (createdTs) {
+          const ts = Math.floor(new Date(createdTs).getTime() / 1000);
+          if (!isNaN(ts)) postedAt = ts;
+        }
+        if (!postedAt) {
+          const timeEl = el.querySelector('time[datetime]');
+          if (timeEl) {
+            const ts = Math.floor(new Date(timeEl.getAttribute('datetime')).getTime() / 1000);
+            if (!isNaN(ts)) postedAt = ts;
+          }
+        }
+
         if (title && postUrl) {
-          results.push({ title, url: postUrl, id: postId, subreddit });
+          results.push({ title, url: postUrl, id: postId, subreddit, postedAt });
         }
       });
     }
@@ -103,8 +117,15 @@ async function scrapeSubreddit(page, subredditName) {
 
         const postId = el.getAttribute('data-fullname') || '';
 
+        const timeEl = el.querySelector('time[datetime]');
+        let postedAt = null;
+        if (timeEl) {
+          const ts = Math.floor(new Date(timeEl.getAttribute('datetime')).getTime() / 1000);
+          if (!isNaN(ts)) postedAt = ts;
+        }
+
         if (title && postUrl) {
-          results.push({ title, url: postUrl, id: postId, subreddit });
+          results.push({ title, url: postUrl, id: postId, subreddit, postedAt });
         }
       });
     }
@@ -296,8 +317,22 @@ async function scrapeRedditSearch(page, query) {
           if (m) subreddit = m[1];
         }
 
+        let postedAt = null;
+        const createdTs = el.getAttribute('created-timestamp');
+        if (createdTs) {
+          const ts = Math.floor(new Date(createdTs).getTime() / 1000);
+          if (!isNaN(ts)) postedAt = ts;
+        }
+        if (!postedAt) {
+          const timeEl = el.querySelector('time[datetime]');
+          if (timeEl) {
+            const ts = Math.floor(new Date(timeEl.getAttribute('datetime')).getTime() / 1000);
+            if (!isNaN(ts)) postedAt = ts;
+          }
+        }
+
         if (title && postUrl) {
-          results.push({ title, url: postUrl, id: postId, subreddit });
+          results.push({ title, url: postUrl, id: postId, subreddit, postedAt });
         }
       });
     }
@@ -326,8 +361,15 @@ async function scrapeRedditSearch(page, query) {
           if (m) subreddit = m[1];
         }
 
+        const timeEl = el.querySelector('time[datetime]');
+        let postedAt = null;
+        if (timeEl) {
+          const ts = Math.floor(new Date(timeEl.getAttribute('datetime')).getTime() / 1000);
+          if (!isNaN(ts)) postedAt = ts;
+        }
+
         if (title && postUrl) {
-          results.push({ title, url: postUrl, id: postId, subreddit });
+          results.push({ title, url: postUrl, id: postId, subreddit, postedAt });
         }
       });
     }

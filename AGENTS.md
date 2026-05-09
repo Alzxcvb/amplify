@@ -248,6 +248,15 @@ node src/index.js --campaign=arrival-pass --dry-run
 - `setCampaignSetting` was extended to accept `matchRatio`, `commentsChecked`, `matchesFound` options — these populate the dedicated columns in `tuning_history` (were previously always NULL)
 - TASK-37 (bot wiring) must: (1) read `pending_experiment` before each campaign run and apply `candidateValue` to `resolvedSettings` in-memory, (2) call `getRecentRunStats` + `tuneCampaign` after `recordRunStats`, (3) log returned decisions with `chalk.yellow`
 
+## Post Age Filter Notes (TASK-38)
+
+- `shreddit-post[created-timestamp]` holds an ISO 8601 string (e.g. "2024-01-15T12:00:00.000Z") — parse with `new Date(createdTs).getTime() / 1000` inside `page.evaluate`
+- Fallback: `el.querySelector('time[datetime]')` — same parsing applies; used for both shreddit and old Reddit post containers
+- `postedAt` is `null` when no timestamp found — age filter passes `null` posts through (safe default: don't discard what we can't date)
+- Age filter runs BEFORE the `hasSeenPost` dedup so old posts are never marked seen unnecessarily
+- Applied in bot.js in both the subreddit loop (`freshPosts`) and keyword search loop (`freshSearchPosts`)
+- `resolvedSettings.post_age_days` drives the threshold — auto-tuner can adjust this via campaign_settings
+
 ## Auto-Tuner Bot Wiring Notes (TASK-37)
 
 - `getCampaignSetting` and `getRecentRunStats` are imported from `./state/db` (already exported from db.js)

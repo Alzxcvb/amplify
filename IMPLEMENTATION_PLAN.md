@@ -86,7 +86,7 @@
 
 ## Phase 14: Post Age Filter
 
-- [ ] TASK-38: Post age filter in scraper — in src/platforms/reddit/scraper.js scrapeSubreddit() and scrapeRedditSearch(): extract post timestamp from shreddit-post[created-timestamp] attribute or time[datetime] element. Add postedAt (unix seconds) to returned post objects. In src/bot.js: after fetching posts, filter out posts where (Date.now()/1000 - post.postedAt) > resolvedSettings.post_age_days * 86400. Log filtered count with chalk.dim. node --check verify. Depends: TASK-30.
+- [x] TASK-38: Post age filter in scraper — in src/platforms/reddit/scraper.js scrapeSubreddit() and scrapeRedditSearch(): extract post timestamp from shreddit-post[created-timestamp] attribute or time[datetime] element. Add postedAt (unix seconds) to returned post objects. In src/bot.js: after fetching posts, filter out posts where (Date.now()/1000 - post.postedAt) > resolvedSettings.post_age_days * 86400. Log filtered count with chalk.dim. node --check verify. Depends: TASK-30.
 
 ## Phase 15: Reply Style Variation
 
