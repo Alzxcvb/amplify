@@ -94,6 +94,14 @@ async function processNewPosts(browser, page, posts, campaign, stats, dryRun, re
         continue;
       }
 
+      // Log every classification result so operator can see what's happening
+      if (result.confidence > 0 || result.match) {
+        const label = result.match && result.confidence >= resolvedSettings.confidence_threshold
+          ? chalk.green(`MATCH conf=${result.confidence}`)
+          : chalk.dim(`skip conf=${result.confidence}`);
+        console.log(`[bot] ${label} | ${(result.reason || '').slice(0, 60)} | ${comment.url.slice(-50)}`);
+      }
+
       if (result.match && result.confidence >= resolvedSettings.confidence_threshold && result.reply) {
         stats[campaign.id].matchesFound++;
         console.log(chalk.green(`[bot] Match (confidence ${result.confidence}): ${comment.url}`));
