@@ -1,0 +1,83 @@
+{
+  "id": "ns-residency",
+  "product": "Network School — Coliving for Remote Workers",
+  "url": "https://ns.com/acoffman/apply",
+  "pitch": "Network School in Forest City, Malaysia is a fully managed coliving community for remote workers and founders. Everything handled — food, cleaning, housekeeping, fast wifi, a focused community. $1500/month. Use this referral link to get your first week free.",
+  "confidence_threshold": 6,
+  "pain_points": [
+    "looking for coliving",
+    "where to work remotely",
+    "digital nomad base",
+    "remote work community",
+    "coworking coliving",
+    "want to focus and get work done",
+    "distracted working from home",
+    "need accountability",
+    "nomad community",
+    "structured environment remote work",
+    "lock in and work",
+    "deep work retreat",
+    "work abroad",
+    "remote work setup",
+    "best place for digital nomads",
+    "coliving recommendation",
+    "where should I go as a nomad",
+    "tired of working from cafes",
+    "want community while working remotely"
+  ],
+  "reply_style": "remote worker who has done coliving and knows exactly what it's like to need a focused environment",
+  "reply_instructions": "Lead with empathy for their specific situation — call out exactly what they're struggling with. Then mention Network School naturally as a place you know about, describe what's included (food, cleaning, community, wifi — all handled), and drop the referral link as a way to get the first week free. Keep it conversational, like you're telling a friend about a place. Do NOT say 'I got paid for this' or sound like an ad. Do NOT use 'game changer', 'amazing', 'check it out', 'feel free to'. Sound like someone who genuinely found a good solution.",
+  "active": true,
+  "platforms": {
+    "reddit": [
+      "r/digitalnomad",
+      "r/remotework",
+      "r/solotravel",
+      "r/expats",
+      "r/WorkOnline",
+      "r/freelance",
+      "r/Entrepreneur",
+      "r/startups",
+      "r/backpacking",
+      "r/Thailand",
+      "r/SEABackpacking",
+      "r/malaysia"
+    ],
+    "quora": [
+      "best coliving spaces for remote workers",
+      "where to work remotely in Southeast Asia",
+      "digital nomad community recommendations",
+      "coliving vs apartment for remote work"
+    ],
+    "bluesky": [
+      "coliving remote work",
+      "digital nomad community",
+      "remote work focused environment"
+    ],
+    "twitter": [
+      "coliving recommendation",
+      "digital nomad where to go",
+      "remote work community"
+    ],
+    "threads": [
+      "coliving remote work",
+      "digital nomad base"
+    ],
+    "linkedin": {
+      "prospect_queries": [],
+      "post_queries": [
+        "looking for coliving remote work",
+        "digital nomad community",
+        "remote work focused environment"
+      ]
+    },
+    "instagram_trends": [
+      "digitalnomad",
+      "coliving",
+      "remotework",
+      "workfromanywhere",
+      "nomadlife"
+    ],
+    "facebook": []
+  }
+}
