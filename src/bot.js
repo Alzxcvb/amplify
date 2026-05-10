@@ -264,14 +264,19 @@ async function processOtherPlatforms(browser, campaign, stats, dryRun, resolvedS
       if (twitterTrends.length > 0) console.log(chalk.cyan(`[bot] Twitter trends: ${twitterTrends.slice(0, 5).map(t => t.topic).join(', ')}`));
       for (const keyword of twitterKeywords.slice(0, 3)) {
         console.log(chalk.blue(`[bot] Twitter search: "${keyword}" for ${campaign.id}`));
-        const posts = await scrapeTwitterSearch(twPage, keyword, 15).catch(() => []);
-        for (const post of posts.filter(p => !hasSeenPost(p.url)).slice(0, 5)) {
+        const posts = await scrapeTwitterSearch(twPage, keyword, 30).catch(() => []);
+        const newPosts = posts.filter(p => !hasSeenPost(p.url));
+        console.log(chalk.gray(`[twitter] "${keyword}": ${posts.length} scraped, ${newPosts.length} new`));
+        for (const post of newPosts) {
           markPostSeen('twitter', post.url);
           stats[campaign.id].postsScanned++;
           let result;
           try { result = await classifyAndReply(browser, { url: post.url, title: '', body: post.body, commentUrl: post.url, commentBody: post.body, author: post.author, platform: 'twitter' }, campaign, resolvedSettings); } catch { continue; }
           stats[campaign.id].commentsChecked++;
-          logResult('Twitter', result);
+          const label = result.match && result.confidence >= threshold
+            ? chalk.green(`MATCH conf=${result.confidence}`)
+            : chalk.dim(`skip conf=${result.confidence}`);
+          console.log(`[twitter] ${label} | ${(result.reason || '').slice(0, 80)} | ${post.url.slice(-50)}`);
           if (result.match && result.confidence >= threshold && result.reply) {
             handleMatch(campaign, 'twitter', post.url, post.url, result.reply, stats, scanOnly);
           }
@@ -371,19 +376,6 @@ async function runBot({ dryRun = false, campaignFilter = null, scanOnly = false 
       stats[campaign.id] = { postsScanned: 0, commentsChecked: 0, matchesFound: 0, repliesPosted: 0, skipped: 0, injectionAttempts: 0, subredditsScanned: 0, flaggedSubreddits: [], newSubredditsDiscovered: [], tuningChanges: [], resolvedSettings: null };
 
       const resolvedSettings = resolveSettings(campaign.id, campaign);
-
-      // Apply any pending A/B experiment in-memory before this run
-      const pendingExpRaw = getCampaignSetting(campaign.id, 'pending_experiment', null);
-      if (pendingExpRaw && pendingExpRaw !== 'null') {
-        try {
-          const exp = JSON.parse(pendingExpRaw);
-          if (exp && exp.parameter && exp.parameter !== 'subreddit_set') {
-            resolvedSettings[exp.parameter] = exp.candidateValue;
-            console.log(chalk.yellow(`[bot] Applying experiment: ${exp.parameter} = ${exp.candidateValue} (baseline: ${exp.baselineValue})`));
-          }
-        } catch (_) { /* malformed experiment JSON — ignore */ }
-      }
-
       stats[campaign.id].resolvedSettings = resolvedSettings;
 
       console.log(chalk.dim(`[bot] ${campaign.id} settings: confidence_threshold=${resolvedSettings.confidence_threshold} max_comments=${resolvedSettings.max_comments_per_post} max_replies_per_hour=${resolvedSettings.max_replies_per_hour} min_gap=${resolvedSettings.min_seconds_between_replies}s post_age_days=${resolvedSettings.post_age_days} reply_style="${resolvedSettings.reply_style}"`));

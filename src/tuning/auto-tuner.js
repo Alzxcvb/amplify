@@ -10,9 +10,8 @@ const {
 } = require('../state/db');
 const { DEFAULTS } = require('../config');
 
-// Parameters that rotate through A/B experiments.
-// subreddit_set is last — it's one-way (flag + discover), not numeric A/B.
-const ROTATION = ['post_age_days', 'confidence_threshold', 'max_comments_per_post', 'subreddit_set'];
+// confidence_threshold is intentionally excluded — manual setting only, never auto-tuned.
+const ROTATION = ['post_age_days', 'max_comments_per_post', 'subreddit_set'];
 
 function computeScore(matchRatio, commentsChecked) {
   return matchRatio * Math.log(commentsChecked + 1);
