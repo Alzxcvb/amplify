@@ -38,7 +38,40 @@
       "r/SaaS",
       "r/ClaudeAI"
     ],
-    "instagram": [],
+    "quora": [
+      "AI for investment research",
+      "automate due diligence",
+      "AI tools for hedge funds",
+      "Claude AI for finance"
+    ],
+    "bluesky": [
+      "AI investment research",
+      "due diligence automation",
+      "AI hedge fund"
+    ],
+    "linkedin": {
+      "prospect_queries": [
+        "hedge fund portfolio manager AI",
+        "private equity principal AI automation",
+        "family office AI workflow",
+        "venture capital associate AI tools"
+      ],
+      "post_queries": [
+        "AI automate due diligence",
+        "investment research automation",
+        "AI for financial analysis"
+      ]
+    },
+    "twitter": [
+      "AI due diligence",
+      "hedge fund AI",
+      "investment research automation"
+    ],
+    "threads": [
+      "AI finance automation",
+      "due diligence AI"
+    ],
+    "instagram_trends": [],
     "facebook": []
   }
 }

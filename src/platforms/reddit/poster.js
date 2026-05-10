@@ -44,14 +44,6 @@ async function postReply(page, commentUrl, replyText, options = {}) {
     throw new Error('Post is locked or archived');
   }
 
-  // Check for login wall before attempting interaction
-  if (
-    (await page.locator('a[href*="/login"], a[href*="/register"]').count().catch(() => 0)) > 0 &&
-    (await page.locator('button', { hasText: /^reply$/i }).count().catch(() => 0)) === 0
-  ) {
-    throw new Error('Not logged in to Reddit — run: node setup-browser.js');
-  }
-
   // Extract comment ID from URL to locate the specific comment element
   const urlParts = commentUrl.replace(/\/$/, '').split('/').filter(Boolean);
   const rawCommentId = urlParts[urlParts.length - 1];

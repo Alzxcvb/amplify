@@ -108,6 +108,29 @@ function initTables(database) {
       match_ratio       REAL NOT NULL DEFAULT 0,
       settings_snapshot TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS leads (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id TEXT NOT NULL,
+      platform    TEXT NOT NULL,
+      profile_url TEXT NOT NULL,
+      name        TEXT,
+      context     TEXT,
+      post_url    TEXT,
+      found_at    INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+      status      TEXT NOT NULL DEFAULT 'new',
+      UNIQUE(campaign_id, profile_url)
+    );
+
+    CREATE TABLE IF NOT EXISTS trends (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform      TEXT NOT NULL,
+      topic         TEXT NOT NULL,
+      signal_count  INTEGER NOT NULL DEFAULT 1,
+      first_seen_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+      last_seen_at  INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+      UNIQUE(platform, topic)
+    );
   `);
 }
 
@@ -303,6 +326,46 @@ function getRecentRunStats(campaignId, limit = 5) {
     .all(campaignId, limit);
 }
 
+function logLead(campaignId, platform, profileUrl, { name = null, context = null, postUrl = null } = {}) {
+  getDb()
+    .prepare('INSERT OR IGNORE INTO leads (campaign_id, platform, profile_url, name, context, post_url, found_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(campaignId, platform, profileUrl, name, context, postUrl, Math.floor(Date.now() / 1000));
+}
+
+function getLeads(campaignId, { limit = 50, status = null } = {}) {
+  if (status) {
+    return getDb()
+      .prepare('SELECT * FROM leads WHERE campaign_id = ? AND status = ? ORDER BY found_at DESC LIMIT ?')
+      .all(campaignId, status, limit);
+  }
+  return getDb()
+    .prepare('SELECT * FROM leads WHERE campaign_id = ? ORDER BY found_at DESC LIMIT ?')
+    .all(campaignId, limit);
+}
+
+function recordTrend(platform, topic) {
+  const now = Math.floor(Date.now() / 1000);
+  getDb()
+    .prepare(`INSERT INTO trends (platform, topic, signal_count, first_seen_at, last_seen_at)
+              VALUES (?, ?, 1, ?, ?)
+              ON CONFLICT(platform, topic) DO UPDATE SET
+                signal_count = signal_count + 1,
+                last_seen_at = excluded.last_seen_at`)
+    .run(platform, topic, now, now);
+}
+
+function getTrends(platform, { limit = 30, sinceHours = 24 } = {}) {
+  const cutoff = Math.floor(Date.now() / 1000) - sinceHours * 3600;
+  if (platform) {
+    return getDb()
+      .prepare('SELECT * FROM trends WHERE platform = ? AND last_seen_at > ? ORDER BY signal_count DESC LIMIT ?')
+      .all(platform, cutoff, limit);
+  }
+  return getDb()
+    .prepare('SELECT * FROM trends WHERE last_seen_at > ? ORDER BY signal_count DESC LIMIT ?')
+    .all(cutoff, limit);
+}
+
 module.exports = {
   getDb,
   hasSeenPost, markPostSeen,
@@ -313,4 +376,6 @@ module.exports = {
   updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, getSubredditMatchRatio,
   addDiscoveredSubreddit, getDiscoveredSubreddits,
   saveRunStats, getRecentRunStats,
+  logLead, getLeads,
+  recordTrend, getTrends,
 };

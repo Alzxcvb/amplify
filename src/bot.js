@@ -8,7 +8,13 @@ const { loadCampaigns } = require('./campaigns/loader');
 const { scrapeSubreddit, scrapePostComments, scrapeRedditSearch } = require('./platforms/reddit/scraper');
 const { postReply } = require('./platforms/reddit/poster');
 const { classifyAndReply } = require('./ai/classifier');
-const { hasSeenPost, markPostSeen, logReply, logSkipped, hasRepliedToComment, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, addDiscoveredSubreddit, getDiscoveredSubreddits, getCampaignSetting, setCampaignSetting, getRecentRunStats } = require('./state/db');
+const { hasSeenPost, markPostSeen, logReply, logSkipped, hasRepliedToComment, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, addDiscoveredSubreddit, getDiscoveredSubreddits, getCampaignSetting, setCampaignSetting, getRecentRunStats, logLead, recordTrend } = require('./state/db');
+const { scrapeQuoraSearch, scrapeQuoraAnswers, postQuoraAnswer } = require('./platforms/quora/scraper');
+const { scrapeBlueSkySearch } = require('./platforms/bluesky/scraper');
+const { scrapeLinkedInSearch, scrapeLinkedInProspects } = require('./platforms/linkedin/scraper');
+const { scrapeInstagramTrends } = require('./platforms/instagram/scraper');
+const { scrapeTwitterSearch, scrapeTwitterTrends } = require('./platforms/twitter/scraper');
+const { scrapeThreadsSearch } = require('./platforms/threads/scraper');
 const { discoverSubreddits, discoverKeywords } = require('./discovery/subreddit-finder');
 const { SCROLL_PAUSE_MS, resolveSettings } = require('./config');
 const { betweenPages, readingPause } = require('./browser/human');
@@ -126,6 +132,200 @@ async function processNewPosts(browser, page, posts, campaign, stats, dryRun, re
     if (rateLimitBroken) return true;
   }
   return false;
+}
+
+async function processOtherPlatforms(browser, campaign, stats, dryRun, resolvedSettings) {
+  const platforms = campaign.platforms || {};
+
+  // --- Quora: search for questions, classify, post answers ---
+  const quoraKeywords = platforms.quora || [];
+  if (quoraKeywords.length > 0) {
+    const quoraPage = await openNewTab(browser, null);
+    try {
+      for (const keyword of quoraKeywords.slice(0, 4)) {
+        console.log(chalk.blue(`[bot] Quora search: "${keyword}" for campaign: ${campaign.id}`));
+        const posts = await scrapeQuoraSearch(quoraPage, keyword).catch(() => []);
+        const newPosts = posts.filter(p => !hasSeenPost(p.url));
+        for (const post of newPosts.slice(0, 5)) {
+          markPostSeen('quora', post.url);
+          stats[campaign.id].postsScanned++;
+          const answers = await scrapeQuoraAnswers(quoraPage, post.url, 8).catch(() => []);
+          for (const answer of answers) {
+            if (hasRepliedToComment(answer.url)) continue;
+            const rl = isRateLimited(campaign.id, resolvedSettings);
+            if (rl.limited) break;
+            await readingPause();
+            const postData = { url: post.url, title: post.title, body: '', commentUrl: answer.url, commentBody: answer.body, author: answer.author, platform: 'quora' };
+            let result;
+            try { result = await classifyAndReply(browser, postData, campaign, resolvedSettings); } catch { continue; }
+            stats[campaign.id].commentsChecked++;
+            if (result.confidence > 0) {
+              const label = result.match && result.confidence >= resolvedSettings.confidence_threshold ? chalk.green(`MATCH conf=${result.confidence}`) : chalk.dim(`skip conf=${result.confidence}`);
+              console.log(`[bot] Quora ${label} | ${(result.reason || '').slice(0, 50)}`);
+            }
+            if (result.match && result.confidence >= resolvedSettings.confidence_threshold && result.reply) {
+              stats[campaign.id].matchesFound++;
+              if (!dryRun) {
+                try { await postQuoraAnswer(quoraPage, post.url, result.reply); logReply(campaign.id, post.url, answer.url, result.reply); stats[campaign.id].repliesPosted++; console.log(chalk.green(`[bot] Quora answer posted`)); } catch (err) { console.warn(chalk.yellow(`[bot] Quora post error: ${err.message}`)); }
+              } else { console.log(`[DRY RUN] Would answer Quora: ${post.url}`); }
+            }
+          }
+          await betweenPages();
+        }
+      }
+    } finally { await closePage(quoraPage); }
+  }
+
+  // --- BlueSky: public API search, classify, log (posting requires env vars) ---
+  const bskyKeywords = platforms.bluesky || [];
+  if (bskyKeywords.length > 0) {
+    for (const keyword of bskyKeywords.slice(0, 4)) {
+      console.log(chalk.blue(`[bot] BlueSky search: "${keyword}" for campaign: ${campaign.id}`));
+      const posts = await scrapeBlueSkySearch(keyword, 20).catch(() => []);
+      const newPosts = posts.filter(p => !hasSeenPost(p.url));
+      for (const post of newPosts.slice(0, 8)) {
+        markPostSeen('bluesky', post.url);
+        stats[campaign.id].postsScanned++;
+        if (hasRepliedToComment(post.url)) continue;
+        const rl = isRateLimited(campaign.id, resolvedSettings);
+        if (rl.limited) break;
+        const postData = { url: post.url, title: '', body: post.body, commentUrl: post.url, commentBody: post.body, author: post.author, platform: 'bluesky' };
+        let result;
+        try { result = await classifyAndReply(browser, postData, campaign, resolvedSettings); } catch { continue; }
+        stats[campaign.id].commentsChecked++;
+        if (result.confidence > 0) {
+          const label = result.match && result.confidence >= resolvedSettings.confidence_threshold ? chalk.green(`MATCH conf=${result.confidence}`) : chalk.dim(`skip conf=${result.confidence}`);
+          console.log(`[bot] BlueSky ${label} | ${(result.reason || '').slice(0, 50)} | @${post.author}`);
+        }
+        if (result.match && result.confidence >= resolvedSettings.confidence_threshold && result.reply) {
+          stats[campaign.id].matchesFound++;
+          const bskyId = process.env.BLUESKY_IDENTIFIER;
+          const bskyPass = process.env.BLUESKY_APP_PASSWORD;
+          if (!dryRun && bskyId && bskyPass) {
+            try {
+              const { postBlueSkyReply } = require('./platforms/bluesky/scraper');
+              await postBlueSkyReply(bskyId, bskyPass, post._uri, post._cid, result.reply);
+              logReply(campaign.id, post.url, post.url, result.reply); stats[campaign.id].repliesPosted++;
+              console.log(chalk.green(`[bot] BlueSky reply posted`));
+            } catch (err) { console.warn(chalk.yellow(`[bot] BlueSky post error: ${err.message}`)); }
+          } else { console.log(`[DRY RUN / no creds] Would reply on BlueSky: ${post.url}`); }
+        }
+      }
+    }
+  }
+
+  // --- LinkedIn: prospect search, log leads ---
+  const linkedinConfig = platforms.linkedin || {};
+  const linkedinKeywords = Array.isArray(linkedinConfig) ? linkedinConfig : (linkedinConfig.prospect_queries || []);
+  const linkedinPostKeywords = linkedinConfig.post_queries || linkedinKeywords;
+  if (linkedinKeywords.length > 0 || linkedinPostKeywords.length > 0) {
+    const liPage = await openNewTab(browser, null);
+    try {
+      for (const query of linkedinKeywords.slice(0, 3)) {
+        console.log(chalk.blue(`[bot] LinkedIn prospect search: "${query}" for campaign: ${campaign.id}`));
+        const prospects = await scrapeLinkedInProspects(liPage, query, 10).catch(() => []);
+        for (const p of prospects) {
+          logLead(campaign.id, 'linkedin', p.profileUrl, { name: p.name, context: p.context });
+        }
+        if (prospects.length > 0) console.log(chalk.cyan(`[bot] LinkedIn: found ${prospects.length} prospects for "${query}"`));
+        await betweenPages();
+      }
+      for (const query of linkedinPostKeywords.slice(0, 3)) {
+        console.log(chalk.blue(`[bot] LinkedIn post search: "${query}" for campaign: ${campaign.id}`));
+        const posts = await scrapeLinkedInSearch(liPage, query, 10).catch(() => []);
+        const newPosts = posts.filter(p => !hasSeenPost(p.url));
+        for (const post of newPosts.slice(0, 5)) {
+          markPostSeen('linkedin', post.url);
+          stats[campaign.id].postsScanned++;
+          if (post.profileUrl) logLead(campaign.id, 'linkedin', post.profileUrl, { name: post.author, context: post.body.slice(0, 200), postUrl: post.url });
+          const rl = isRateLimited(campaign.id, resolvedSettings);
+          if (rl.limited) break;
+          const postData = { url: post.url, title: '', body: post.body, commentUrl: post.url, commentBody: post.body, author: post.author, platform: 'linkedin' };
+          let result;
+          try { result = await classifyAndReply(browser, postData, campaign, resolvedSettings); } catch { continue; }
+          stats[campaign.id].commentsChecked++;
+          if (result.confidence > 0) {
+            const label = result.match && result.confidence >= resolvedSettings.confidence_threshold ? chalk.green(`MATCH conf=${result.confidence}`) : chalk.dim(`skip conf=${result.confidence}`);
+            console.log(`[bot] LinkedIn ${label} | ${(result.reason || '').slice(0, 50)}`);
+          }
+        }
+        await betweenPages();
+      }
+    } finally { await closePage(liPage); }
+  }
+
+  // --- Instagram: hashtag trend monitoring ---
+  const igHashtags = platforms.instagram_trends || [];
+  if (igHashtags.length > 0) {
+    const igPage = await openNewTab(browser, null);
+    try {
+      const trends = await scrapeInstagramTrends(igPage, igHashtags.slice(0, 5)).catch(() => []);
+      for (const t of trends) {
+        recordTrend('instagram', `#${t.hashtag}`);
+        console.log(chalk.cyan(`[bot] IG trend: #${t.hashtag} (${t.postCount} posts)`));
+      }
+    } finally { await closePage(igPage); }
+  }
+
+  // --- Twitter/X: keyword search + trends ---
+  const twitterKeywords = platforms.twitter || [];
+  if (twitterKeywords.length > 0) {
+    const twPage = await openNewTab(browser, null);
+    try {
+      const twitterTrends = await scrapeTwitterTrends(twPage).catch(() => []);
+      for (const t of twitterTrends.slice(0, 10)) { recordTrend('twitter', t.topic); }
+      if (twitterTrends.length > 0) console.log(chalk.cyan(`[bot] Twitter trends: ${twitterTrends.slice(0, 5).map(t => t.topic).join(', ')}`));
+
+      for (const keyword of twitterKeywords.slice(0, 3)) {
+        console.log(chalk.blue(`[bot] Twitter search: "${keyword}" for campaign: ${campaign.id}`));
+        const posts = await scrapeTwitterSearch(twPage, keyword, 15).catch(() => []);
+        const newPosts = posts.filter(p => !hasSeenPost(p.url));
+        for (const post of newPosts.slice(0, 5)) {
+          markPostSeen('twitter', post.url);
+          stats[campaign.id].postsScanned++;
+          const rl = isRateLimited(campaign.id, resolvedSettings);
+          if (rl.limited) break;
+          const postData = { url: post.url, title: '', body: post.body, commentUrl: post.url, commentBody: post.body, author: post.author, platform: 'twitter' };
+          let result;
+          try { result = await classifyAndReply(browser, postData, campaign, resolvedSettings); } catch { continue; }
+          stats[campaign.id].commentsChecked++;
+          if (result.confidence > 0) {
+            const label = result.match && result.confidence >= resolvedSettings.confidence_threshold ? chalk.green(`MATCH conf=${result.confidence}`) : chalk.dim(`skip conf=${result.confidence}`);
+            console.log(`[bot] Twitter ${label} | ${(result.reason || '').slice(0, 50)}`);
+          }
+        }
+        await betweenPages();
+      }
+    } finally { await closePage(twPage); }
+  }
+
+  // --- Threads: keyword search ---
+  const threadsKeywords = platforms.threads || [];
+  if (threadsKeywords.length > 0) {
+    const thPage = await openNewTab(browser, null);
+    try {
+      for (const keyword of threadsKeywords.slice(0, 3)) {
+        console.log(chalk.blue(`[bot] Threads search: "${keyword}" for campaign: ${campaign.id}`));
+        const posts = await scrapeThreadsSearch(thPage, keyword, 15).catch(() => []);
+        const newPosts = posts.filter(p => !hasSeenPost(p.url));
+        for (const post of newPosts.slice(0, 5)) {
+          markPostSeen('threads', post.url);
+          stats[campaign.id].postsScanned++;
+          const rl = isRateLimited(campaign.id, resolvedSettings);
+          if (rl.limited) break;
+          const postData = { url: post.url, title: '', body: post.body, commentUrl: post.url, commentBody: post.body, author: post.author, platform: 'threads' };
+          let result;
+          try { result = await classifyAndReply(browser, postData, campaign, resolvedSettings); } catch { continue; }
+          stats[campaign.id].commentsChecked++;
+          if (result.confidence > 0) {
+            const label = result.match && result.confidence >= resolvedSettings.confidence_threshold ? chalk.green(`MATCH conf=${result.confidence}`) : chalk.dim(`skip conf=${result.confidence}`);
+            console.log(`[bot] Threads ${label} | ${(result.reason || '').slice(0, 50)}`);
+          }
+        }
+        await betweenPages();
+      }
+    } finally { await closePage(thPage); }
+  }
 }
 
 async function runBot({ dryRun = false, campaignFilter = null } = {}) {
@@ -320,6 +520,13 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
         }
       } finally {
         await closePage(page);
+      }
+
+      // Process non-Reddit platforms (Quora, BlueSky, LinkedIn, Instagram, Twitter, Threads)
+      try {
+        await processOtherPlatforms(browser, campaign, stats, dryRun, resolvedSettings);
+      } catch (err) {
+        console.warn(chalk.yellow(`[bot] processOtherPlatforms error: ${err.message}`));
       }
 
       recordRunStats(campaign.id, stats[campaign.id], resolvedSettings);
