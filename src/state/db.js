@@ -109,6 +109,18 @@ function initTables(database) {
       settings_snapshot TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS pending_replies (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id TEXT NOT NULL,
+      platform    TEXT NOT NULL,
+      post_url    TEXT NOT NULL,
+      comment_url TEXT NOT NULL UNIQUE,
+      reply_text  TEXT NOT NULL,
+      found_at    INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+      retry_count INTEGER NOT NULL DEFAULT 0,
+      last_error  TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS leads (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       campaign_id TEXT NOT NULL,
@@ -326,6 +338,28 @@ function getRecentRunStats(campaignId, limit = 5) {
     .all(campaignId, limit);
 }
 
+function queueReply(campaignId, platform, postUrl, commentUrl, replyText) {
+  getDb()
+    .prepare('INSERT OR IGNORE INTO pending_replies (campaign_id, platform, post_url, comment_url, reply_text) VALUES (?, ?, ?, ?, ?)')
+    .run(campaignId, platform, postUrl, commentUrl, replyText, Math.floor(Date.now() / 1000));
+}
+
+function getPendingReplies(campaignId, limit = 20) {
+  return getDb()
+    .prepare('SELECT * FROM pending_replies WHERE campaign_id = ? ORDER BY found_at ASC LIMIT ?')
+    .all(campaignId, limit);
+}
+
+function clearPendingReply(commentUrl) {
+  getDb().prepare('DELETE FROM pending_replies WHERE comment_url = ?').run(commentUrl);
+}
+
+function markPendingFailed(commentUrl, error) {
+  getDb()
+    .prepare('UPDATE pending_replies SET retry_count = retry_count + 1, last_error = ? WHERE comment_url = ?')
+    .run(error, commentUrl);
+}
+
 function logLead(campaignId, platform, profileUrl, { name = null, context = null, postUrl = null } = {}) {
   getDb()
     .prepare('INSERT OR IGNORE INTO leads (campaign_id, platform, profile_url, name, context, post_url, found_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
@@ -376,6 +410,7 @@ module.exports = {
   updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, getSubredditMatchRatio,
   addDiscoveredSubreddit, getDiscoveredSubreddits,
   saveRunStats, getRecentRunStats,
+  queueReply, getPendingReplies, clearPendingReply, markPendingFailed,
   logLead, getLeads,
   recordTrend, getTrends,
 };

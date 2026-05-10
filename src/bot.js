@@ -8,7 +8,7 @@ const { loadCampaigns } = require('./campaigns/loader');
 const { scrapeSubreddit, scrapePostComments, scrapeRedditSearch } = require('./platforms/reddit/scraper');
 const { postReply } = require('./platforms/reddit/poster');
 const { classifyAndReply } = require('./ai/classifier');
-const { hasSeenPost, markPostSeen, logReply, logSkipped, hasRepliedToComment, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, addDiscoveredSubreddit, getDiscoveredSubreddits, getCampaignSetting, setCampaignSetting, getRecentRunStats, logLead, recordTrend } = require('./state/db');
+const { hasSeenPost, markPostSeen, logReply, logSkipped, hasRepliedToComment, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, addDiscoveredSubreddit, getDiscoveredSubreddits, getCampaignSetting, setCampaignSetting, getRecentRunStats, logLead, recordTrend, queueReply, getPendingReplies, clearPendingReply, markPendingFailed } = require('./state/db');
 const { scrapeQuoraSearch, scrapeQuoraAnswers, postQuoraAnswer } = require('./platforms/quora/scraper');
 const { scrapeBlueSkySearch } = require('./platforms/bluesky/scraper');
 const { scrapeLinkedInSearch, scrapeLinkedInProspects } = require('./platforms/linkedin/scraper');
@@ -115,12 +115,15 @@ async function processNewPosts(browser, page, posts, campaign, stats, dryRun, re
         try {
           await postReply(page, comment.url, result.reply, { dryRun });
           logReply(campaign.id, post.url, comment.url, result.reply);
+          clearPendingReply(comment.url);
           stats[campaign.id].repliesPosted++;
           console.log(chalk.green(`[bot] Reply posted${dryRun ? ' (dry run)' : ''}`));
         } catch (err) {
           console.warn(chalk.yellow(`[bot] postReply error: ${err.message}`));
+          queueReply(campaign.id, 'reddit', post.url, comment.url, result.reply);
           logSkipped(campaign.id, post.url, `postReply: ${err.message}`);
           stats[campaign.id].skipped++;
+          console.log(chalk.yellow(`[bot] Queued for retry: ${comment.url.slice(-50)}`));
         }
 
         await sleep(SCROLL_PAUSE_MS * (0.8 + Math.random() * 0.4));
@@ -388,6 +391,29 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
       const newlyFlagged = [];
 
       try {
+        // Retry any queued replies from previous failed attempts
+        const pending = getPendingReplies(campaign.id, 10);
+        if (pending.length > 0) {
+          console.log(chalk.cyan(`[bot] Retrying ${pending.length} queued replies for ${campaign.id}`));
+          for (const p of pending) {
+            const rl = isRateLimited(campaign.id, resolvedSettings);
+            if (rl.limited) break;
+            if (hasRepliedToComment(p.comment_url)) { clearPendingReply(p.comment_url); continue; }
+            try {
+              await postReply(page, p.comment_url, p.reply_text, { dryRun });
+              logReply(campaign.id, p.post_url, p.comment_url, p.reply_text);
+              clearPendingReply(p.comment_url);
+              stats[campaign.id].repliesPosted++;
+              console.log(chalk.green(`[bot] Queued reply posted: ${p.comment_url.slice(-50)}`));
+            } catch (err) {
+              markPendingFailed(p.comment_url, err.message);
+              console.warn(chalk.yellow(`[bot] Queued reply still failing (${p.retry_count + 1}x): ${err.message}`));
+              if (p.retry_count >= 4) { clearPendingReply(p.comment_url); console.warn(chalk.red(`[bot] Dropped after 5 failures: ${p.comment_url.slice(-50)}`)); }
+            }
+            await sleep(2000);
+          }
+        }
+
         for (const subreddit of allSubreddits) {
           if (isSubredditFlagged(campaign.id, subreddit)) {
             console.log(chalk.red(`[bot] Skipping flagged subreddit: ${subreddit}`));
