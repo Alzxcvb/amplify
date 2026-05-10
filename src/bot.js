@@ -8,7 +8,7 @@ const { loadCampaigns } = require('./campaigns/loader');
 const { scrapeSubreddit, scrapePostComments, scrapeRedditSearch } = require('./platforms/reddit/scraper');
 const { postReply } = require('./platforms/reddit/poster');
 const { classifyAndReply } = require('./ai/classifier');
-const { hasSeenPost, markPostSeen, logReply, logSkipped, hasRepliedToComment, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, addDiscoveredSubreddit, getDiscoveredSubreddits, getCampaignSetting, setCampaignSetting, getRecentRunStats, logLead, recordTrend, queueReply, getPendingReplies, clearPendingReply, markPendingFailed } = require('./state/db');
+const { hasSeenPost, markPostSeen, logReply, logSkipped, hasRepliedToComment, getRecentReplies, getStats, logInjection, updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, addDiscoveredSubreddit, getDiscoveredSubreddits, getCampaignSetting, setCampaignSetting, getRecentRunStats, logLead, recordTrend, queueReply, getPendingReplies, markPendingPosted, markPendingFailed } = require('./state/db');
 const { scrapeQuoraSearch, scrapeQuoraAnswers, postQuoraAnswer } = require('./platforms/quora/scraper');
 const { scrapeBlueSkySearch } = require('./platforms/bluesky/scraper');
 const { scrapeLinkedInSearch, scrapeLinkedInProspects } = require('./platforms/linkedin/scraper');
@@ -36,7 +36,7 @@ function isRateLimited(campaignId, settings) {
   return { limited: false };
 }
 
-async function processNewPosts(browser, page, posts, campaign, stats, dryRun, resolvedSettings) {
+async function processNewPosts(browser, page, posts, campaign, stats, dryRun, resolvedSettings, scanOnly = false) {
   for (const post of posts) {
     markPostSeen('reddit', post.url);
     stats[campaign.id].postsScanned++;
@@ -112,18 +112,22 @@ async function processNewPosts(browser, page, posts, campaign, stats, dryRun, re
         stats[campaign.id].matchesFound++;
         console.log(chalk.green(`[bot] Match (confidence ${result.confidence}): ${comment.url}`));
 
-        try {
-          await postReply(page, comment.url, result.reply, { dryRun });
-          logReply(campaign.id, post.url, comment.url, result.reply);
-          clearPendingReply(comment.url);
+        queueReply(campaign.id, 'reddit', post.url, comment.url, result.reply);
+        if (dryRun || scanOnly) {
+          console.log(chalk.yellow(`[bot] ${scanOnly ? 'Queued (scan-only)' : '[DRY RUN] Would reply'}: ${comment.url.slice(-50)}`));
           stats[campaign.id].repliesPosted++;
-          console.log(chalk.green(`[bot] Reply posted${dryRun ? ' (dry run)' : ''}`));
-        } catch (err) {
-          console.warn(chalk.yellow(`[bot] postReply error: ${err.message}`));
-          queueReply(campaign.id, 'reddit', post.url, comment.url, result.reply);
-          logSkipped(campaign.id, post.url, `postReply: ${err.message}`);
-          stats[campaign.id].skipped++;
-          console.log(chalk.yellow(`[bot] Queued for retry: ${comment.url.slice(-50)}`));
+        } else {
+          try {
+            await postReply(page, comment.url, result.reply, {});
+            logReply(campaign.id, post.url, comment.url, result.reply);
+            markPendingPosted(comment.url);
+            stats[campaign.id].repliesPosted++;
+            console.log(chalk.green(`[bot] Reply posted`));
+          } catch (err) {
+            markPendingFailed(comment.url, err.message);
+            console.warn(chalk.yellow(`[bot] Post failed, kept in queue: ${err.message.slice(0, 80)}`));
+            stats[campaign.id].skipped++;
+          }
         }
 
         await sleep(SCROLL_PAUSE_MS * (0.8 + Math.random() * 0.4));
@@ -331,7 +335,42 @@ async function processOtherPlatforms(browser, campaign, stats, dryRun, resolvedS
   }
 }
 
-async function runBot({ dryRun = false, campaignFilter = null } = {}) {
+async function postQueue({ campaignFilter = null, dryRun = false } = {}) {
+  let campaigns = loadCampaigns();
+  if (campaignFilter) campaigns = campaigns.filter(c => c.id === campaignFilter);
+
+  let browser;
+  try { browser = await connectBrowser(); } catch (err) { console.error(chalk.red('[postQueue] ' + err.message)); process.exit(1); }
+
+  try {
+    for (const campaign of campaigns) {
+      const resolvedSettings = resolveSettings(campaign.id, campaign);
+      const pending = getPendingReplies(campaign.id, { limit: 50 });
+      if (pending.length === 0) { console.log(chalk.gray(`[postQueue] ${campaign.id}: nothing queued`)); continue; }
+      console.log(chalk.cyan(`[postQueue] ${campaign.id}: ${pending.length} queued replies to attempt`));
+      const page = await openNewTab(browser, null);
+      try {
+        for (const p of pending) {
+          if (hasRepliedToComment(p.comment_url)) { markPendingPosted(p.comment_url); continue; }
+          const rl = isRateLimited(campaign.id, resolvedSettings);
+          if (rl.limited) { console.log(chalk.yellow(`[postQueue] Rate limit reached for ${campaign.id}`)); break; }
+          try {
+            await postReply(page, p.comment_url, p.reply_text, { dryRun });
+            logReply(campaign.id, p.post_url, p.comment_url, p.reply_text);
+            markPendingPosted(p.comment_url);
+            console.log(chalk.green(`[postQueue] Posted: ${p.comment_url.slice(-60)}`));
+          } catch (err) {
+            markPendingFailed(p.comment_url, err.message);
+            console.warn(chalk.yellow(`[postQueue] Failed (attempt ${p.retry_count + 1}): ${err.message.slice(0, 80)}`));
+          }
+          await sleep(2500 + Math.random() * 2000);
+        }
+      } finally { await closePage(page); }
+    }
+  } finally { await browser.close(); }
+}
+
+async function runBot({ dryRun = false, campaignFilter = null, scanOnly = false } = {}) {
   const startedAt = Date.now();
   console.log(chalk.cyan('[bot] Starting amplify' + (dryRun ? ' (DRY RUN)' : '')));
 
@@ -402,13 +441,12 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
             try {
               await postReply(page, p.comment_url, p.reply_text, { dryRun });
               logReply(campaign.id, p.post_url, p.comment_url, p.reply_text);
-              clearPendingReply(p.comment_url);
+              markPendingPosted(p.comment_url);
               stats[campaign.id].repliesPosted++;
               console.log(chalk.green(`[bot] Queued reply posted: ${p.comment_url.slice(-50)}`));
             } catch (err) {
               markPendingFailed(p.comment_url, err.message);
-              console.warn(chalk.yellow(`[bot] Queued reply still failing (${p.retry_count + 1}x): ${err.message}`));
-              if (p.retry_count >= 4) { clearPendingReply(p.comment_url); console.warn(chalk.red(`[bot] Dropped after 5 failures: ${p.comment_url.slice(-50)}`)); }
+              console.warn(chalk.yellow(`[bot] Queued reply still failing (attempt ${p.retry_count + 1}): ${err.message}`));
             }
             await sleep(2000);
           }
@@ -445,7 +483,7 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
           const beforeComments = stats[campaign.id].commentsChecked;
           const beforeMatches = stats[campaign.id].matchesFound;
 
-          await processNewPosts(browser, page, newPosts, campaign, stats, dryRun, resolvedSettings);
+          await processNewPosts(browser, page, newPosts, campaign, stats, dryRun, resolvedSettings, scanOnly);
 
           // Human-like pause before moving to next subreddit
           await betweenPages();
@@ -522,7 +560,7 @@ async function runBot({ dryRun = false, campaignFilter = null } = {}) {
           const newSearchPosts = freshSearchPosts.filter(p => !hasSeenPost(p.url));
           console.log(chalk.gray(`[bot] Keyword "${keyword}": ${searchPosts.length} posts, ${newSearchPosts.length} new`));
 
-          const rateLimited = await processNewPosts(browser, page, newSearchPosts, campaign, stats, dryRun, resolvedSettings);
+          const rateLimited = await processNewPosts(browser, page, newSearchPosts, campaign, stats, dryRun, resolvedSettings, scanOnly);
           if (rateLimited) break;
 
           // Human-like pause between keyword searches
@@ -643,4 +681,4 @@ function printSummary(stats, dryRun) {
   }
 }
 
-module.exports = { runBot };
+module.exports = { runBot, postQueue };

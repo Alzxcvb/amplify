@@ -117,8 +117,10 @@ function initTables(database) {
       comment_url TEXT NOT NULL UNIQUE,
       reply_text  TEXT NOT NULL,
       found_at    INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-      retry_count INTEGER NOT NULL DEFAULT 0,
-      last_error  TEXT
+      retry_count  INTEGER NOT NULL DEFAULT 0,
+      last_attempt INTEGER,
+      last_error   TEXT,
+      posted_at    INTEGER
     );
 
     CREATE TABLE IF NOT EXISTS leads (
@@ -341,23 +343,30 @@ function getRecentRunStats(campaignId, limit = 5) {
 function queueReply(campaignId, platform, postUrl, commentUrl, replyText) {
   getDb()
     .prepare('INSERT OR IGNORE INTO pending_replies (campaign_id, platform, post_url, comment_url, reply_text) VALUES (?, ?, ?, ?, ?)')
-    .run(campaignId, platform, postUrl, commentUrl, replyText, Math.floor(Date.now() / 1000));
+    .run(campaignId, platform, postUrl, commentUrl, replyText);
 }
 
-function getPendingReplies(campaignId, limit = 20) {
+function getPendingReplies(campaignId, { limit = 20, unpostedOnly = true } = {}) {
+  if (unpostedOnly) {
+    return getDb()
+      .prepare('SELECT * FROM pending_replies WHERE campaign_id = ? AND posted_at IS NULL ORDER BY found_at ASC LIMIT ?')
+      .all(campaignId, limit);
+  }
   return getDb()
     .prepare('SELECT * FROM pending_replies WHERE campaign_id = ? ORDER BY found_at ASC LIMIT ?')
     .all(campaignId, limit);
 }
 
-function clearPendingReply(commentUrl) {
-  getDb().prepare('DELETE FROM pending_replies WHERE comment_url = ?').run(commentUrl);
+function markPendingPosted(commentUrl) {
+  getDb()
+    .prepare('UPDATE pending_replies SET posted_at = ? WHERE comment_url = ?')
+    .run(Math.floor(Date.now() / 1000), commentUrl);
 }
 
 function markPendingFailed(commentUrl, error) {
   getDb()
-    .prepare('UPDATE pending_replies SET retry_count = retry_count + 1, last_error = ? WHERE comment_url = ?')
-    .run(error, commentUrl);
+    .prepare('UPDATE pending_replies SET retry_count = retry_count + 1, last_attempt = ?, last_error = ? WHERE comment_url = ?')
+    .run(Math.floor(Date.now() / 1000), error, commentUrl);
 }
 
 function logLead(campaignId, platform, profileUrl, { name = null, context = null, postUrl = null } = {}) {
@@ -410,7 +419,7 @@ module.exports = {
   updateSubredditStats, flagSubreddit, isSubredditFlagged, getSubredditStats, getSubredditMatchRatio,
   addDiscoveredSubreddit, getDiscoveredSubreddits,
   saveRunStats, getRecentRunStats,
-  queueReply, getPendingReplies, clearPendingReply, markPendingFailed,
+  queueReply, getPendingReplies, markPendingPosted, markPendingFailed,
   logLead, getLeads,
   recordTrend, getTrends,
 };

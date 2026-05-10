@@ -13,11 +13,13 @@ if (!fs.existsSync(campaignsDir)) {
   process.exit(1);
 }
 
-const { runBot } = require('./bot');
+const { runBot, postQueue } = require('./bot');
 
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 const loop = args.includes('--loop');
+const scanOnly = args.includes('--scan-only');
+const postQueueMode = args.includes('--post-queue');
 const campaignArg = args.find(a => a.startsWith('--campaign='));
 const campaignFilter = campaignArg ? campaignArg.split('=')[1] : null;
 const intervalArg = args.find(a => a.startsWith('--interval='));
@@ -28,6 +30,11 @@ function sleep(ms) {
 }
 
 async function main() {
+  if (postQueueMode) {
+    await postQueue({ campaignFilter, dryRun });
+    return;
+  }
+
   let runCount = 0;
   do {
     runCount++;
@@ -35,7 +42,7 @@ async function main() {
       console.log(`\n[loop] === Run #${runCount} starting ===`);
     }
     try {
-      await runBot({ dryRun, campaignFilter });
+      await runBot({ dryRun, campaignFilter, scanOnly });
     } catch (err) {
       console.error('[fatal]', err.message);
       if (!loop) process.exit(1);
